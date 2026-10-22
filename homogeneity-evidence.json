@@ -1,0 +1,9 @@
+{
+  "method": "peer_compare",
+  "peers": [
+    "qsc-003-unit-commitment-storage-dispatch",
+    "capacitated-network-certificates"
+  ],
+  "conclusion": "qsc-004 adds atomic late-validation and storage-state composition; no renamed copy claim",
+  "reviewer": "QSC"
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": "1",
+  "task_checksum": "pending-current-package",
+  "direct_translation_attacks": [
+    "greedy per-hour dispatch",
+    "ignore minimum durations",
+    "single-step storage arithmetic"
+  ],
+  "non_translation_axes": [
+    "commitment state machine",
+    "initial and adjacent ramp transitions",
+    "storage efficiency direction and capacity",
+    "atomic late-input rejection",
+    "renewable-first economics and conservation"
+  ],
+  "complexity_boundaries": [
+    "horizon up to 96 hours",
+    "multiple generators with distinct costs and durations",
+    "storage state carried across all periods",
+    "late invalid record must preserve sentinel"
+  ],
+  "axes": [],
+  "score": {
+    "reference_lines": 120,
+    "changed_lines": 90,
+    "behavior_tests": 14,
+    "independent_axes": 5,
+    "cross_run_state": true,
+    "expert_minutes": 720,
+    "total": 85
+  },
+  "required_models": [
+    "deepseek/deepseek-v4-pro"
+  ],
+  "model_trials": []
+}
