@@ -72,17 +72,9 @@
     "total": 85
   },
   "required_models": [
-    "deepseek/deepseek-v4-pro"
+    "deepseek/deepseek-chat"
   ],
-  "model_trials": [
-    {
-      "model": "deepseek/deepseek-v4-pro",
-      "status": "blocked",
-      "reward": null,
-      "exception": "AuthenticationError 401; invalid for difficulty claim",
-      "checksum": "739de0d6f2af73df62b0391ee0c9a62abf23c6d9505fb0f61c69cab51e7d2d0c"
-    }
-  ],
+  "model_trials": [],
   "direct_translation_attack": {
     "steps": [
       "Sort generators only by marginal cost and solve each hour independently, which ignores the coupled commitment state and initial transition.",
