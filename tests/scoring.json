@@ -3,7 +3,8 @@
   "gate_tests": [
     "test_microgrid.py::test_invalid_input_preserves_absent_output",
     "test_microgrid.py::test_invalid_input_preserves_sentinel",
-    "test_microgrid.py::test_late_invalid_period_is_atomic"
+    "test_microgrid.py::test_late_invalid_period_is_atomic",
+    "test_microgrid.py::test_rejection_leaves_no_temp_or_report_artifacts"
   ],
   "tests": {
     "test_microgrid.py::test_minimum_up_duration_is_respected": {
@@ -59,11 +60,6 @@
     "test_microgrid.py::test_output_schema_is_exact_and_ordered": {
       "priority": "core",
       "rationale": "public contract behavior: test_output_schema_is_exact_and_ordered",
-      "weight": 0.066667
-    },
-    "test_microgrid.py::test_rejection_leaves_no_temp_or_report_artifacts": {
-      "priority": "core",
-      "rationale": "public contract behavior: test_rejection_leaves_no_temp_or_report_artifacts",
       "weight": 0.066667
     },
     "test_microgrid.py::test_repeat_run_is_idempotent": {
