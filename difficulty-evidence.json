@@ -19,7 +19,49 @@
     "storage state carried across all periods",
     "late invalid record must preserve sentinel"
   ],
-  "axes": [],
+  "axes": [
+    {
+      "id": "A1",
+      "name": "commitment-duration state",
+      "tests": [
+        "test_minimum_up_duration_is_respected",
+        "test_initial_off_state_honors_minimum_down_duration"
+      ]
+    },
+    {
+      "id": "A2",
+      "name": "ramp transition",
+      "tests": [
+        "test_ramp_limits_include_initial_transition"
+      ]
+    },
+    {
+      "id": "A3",
+      "name": "storage physics",
+      "tests": [
+        "test_storage_recurrence_uses_efficiencies",
+        "test_storage_capacity_is_never_exceeded"
+      ]
+    },
+    {
+      "id": "A4",
+      "name": "atomic rejection",
+      "tests": [
+        "test_invalid_input_preserves_absent_output",
+        "test_invalid_input_preserves_sentinel",
+        "test_late_invalid_period_is_atomic"
+      ]
+    },
+    {
+      "id": "A5",
+      "name": "balance economics",
+      "tests": [
+        "test_renewable_is_used_before_thermal",
+        "test_unserved_load_is_last_resort_and_penalized",
+        "test_balance_residual_is_zero"
+      ]
+    }
+  ],
   "score": {
     "reference_lines": 120,
     "changed_lines": 90,
