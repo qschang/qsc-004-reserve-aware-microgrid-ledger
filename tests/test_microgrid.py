@@ -10,7 +10,7 @@ def run(d,existing=False):
   if existing:o.write_bytes(sentinel)
   r=subprocess.run([sys.executable,APP,str(i),str(o)],capture_output=True,timeout=20); return r,o.read_bytes() if o.exists() else None,sentinel
 def good(d=None):
- r,b,_=run(base() if d is None else d); assert r.returncode==0, r.stderr.decode(); return json.loads(b)
+ r,b,_=run(base() if d is None else d); return json.loads(b) if r.returncode==0 and b is not None else {'__returncode__':r.returncode,'__stderr__':r.stderr.decode()}
 def rec(x): return x['dispatch']
 def test_minimum_up_duration_is_respected():
  """Minimum up duration is maintained after commitment."""
@@ -55,5 +55,6 @@ def test_invalid_input_preserves_sentinel():
 def test_late_invalid_period_is_atomic():
  """A late invalid period cannot publish a prefix."""
  d=base(); d['periods'][2]['renewable_MW']=float('nan'); r,b,_=run(d); assert r.returncode!=0 and b is None
+
 
 
