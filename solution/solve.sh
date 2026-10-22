@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
-set -Eeuo pipefail
-cp /solution/microgrid.py /app/microgrid.py
-chmod 0755 /app/microgrid.py
+#!/bin/bash
+set -euo pipefail
+install -m 0755 /solution/reference.py /app/microgrid.py
