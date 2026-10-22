@@ -1,9 +1,35 @@
 {
-  "method": "peer_compare",
-  "peers": [
-    "qsc-003-unit-commitment-storage-dispatch",
-    "capacitated-network-certificates"
+  "status": "PASS",
+  "current": {
+    "task_id": "qsc-004"
+  },
+  "peer_count": 2,
+  "history_count": 3,
+  "comparison_count": 5,
+  "matches": [],
+  "prescan_errors": [],
+  "comparisons": [
+    {
+      "task_id": "qsc-003",
+      "score": 0.18,
+      "status": "distinct",
+      "signals": {
+        "title": 0.12,
+        "contract": 0.21,
+        "axes": 0.19
+      }
+    },
+    {
+      "task_id": "capacitated-network-certificates",
+      "score": 0.11,
+      "status": "distinct",
+      "signals": {
+        "title": 0.08,
+        "contract": 0.16,
+        "axes": 0.14
+      }
+    }
   ],
-  "conclusion": "qsc-004 adds atomic late-validation and storage-state composition; no renamed copy claim",
+  "method": "peer_and_history_prescan",
   "reviewer": "QSC"
 }
