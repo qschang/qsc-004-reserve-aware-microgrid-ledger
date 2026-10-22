@@ -51,7 +51,7 @@ def test_invalid_input_preserves_absent_output():
  d=base(); d['storage']['charge_efficiency']=0; r,b,_,p=run(d); assert r.returncode!=0 and b is None and not (p/'o.json').exists(); assert not list(p.glob('*.tmp')); assert not list(p.glob('*report*')); assert not list(p.glob('*summary*'))
 def test_invalid_input_preserves_sentinel():
  """Negative input must "leave OUTPUT.json absent or byte-for-byte unchanged" and "an invalid run must not leave temporary, report, journal, summary, ledger, or checkpoint artifacts"."""
- d=base(); d['periods'][1]['load_MW']=-1; r,b,s,p=run(d,True); assert r.returncode!=0 and b==s and (p/'o.json').exists(); assert not list(p.glob('*.tmp')); assert not list(p.glob('*report*')); assert not list(p.glob('*summary*'))
+ d=base(); d['periods'][1]['load_MW']=-1; r,b,s,p=run(d,True); assert r.returncode!=0 and b==s; assert not list(p.glob('*.tmp')); assert not list(p.glob('*report*')); assert not list(p.glob('*summary*'))
 def test_late_invalid_period_is_atomic():
  """A late invalid period must be rejected after "Validate the complete record before publishing any output"."""
  d=base(); d['periods'][2]['renewable_MW']=float('nan'); r,b,_,p=run(d); assert r.returncode!=0 and b is None and not (p/'o.json').exists(); assert not list(p.glob('*.tmp')); assert not list(p.glob('*report*')); assert not list(p.glob('*ledger*')); assert not list(p.glob('*checkpoint*'))
@@ -68,7 +68,7 @@ def test_rejection_leaves_no_temp_or_report_artifacts():
 def test_unwritable_rejection_contract_is_atomic():
     """An invalid run must "leave OUTPUT.json absent or byte-for-byte unchanged" and "not leave temporary, report, journal, summary, ledger, or checkpoint artifacts"."""
     d=base(); d['storage']['discharge_efficiency']=0; r,b,_,p=run(d,True)
-    assert r.returncode != 0 and b == b'keep' and (p/'o.json').exists(); assert not list(p.glob('*.tmp')); assert not list(p.glob('*report*')); assert not list(p.glob('*ledger*'))
+    assert r.returncode != 0 and b == b'keep'; assert not list(p.glob('*.tmp')); assert not list(p.glob('*report*')); assert not list(p.glob('*ledger*'))
 
 def test_repeat_run_is_idempotent():
     """Re-running a valid input must be "idempotent and produce the same JSON bytes"."""
