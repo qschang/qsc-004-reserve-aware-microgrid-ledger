@@ -40,17 +40,17 @@ def test_balance_residual_is_zero():
  """The schedule must satisfy "load balance each period" with a small residual."""
  x=good(); assert all(abs(q['balance_residual_MW'])<=1e-9 for q in rec(x))
 def test_summary_commitment_hours_matches_records():
- """Summary commitment hours equal per-period on counts."""
+ """The public output includes a per-generator "commitment_hours" mapping."""
  x=good();
  for gid,n in x['summary']['commitment_hours'].items(): assert n==sum(g['on'] for q in rec(x) for g in q['generators'] if g['id']==gid)
 def test_output_schema_is_exact_and_ordered():
  """The implementation must "Return exactly dispatch and summary" with the public shape."""
  x=good(); assert list(x)==['dispatch','summary'] and set(x['dispatch'][0])=={'generators','storage','renewable_used_MW','curtailment_MW','unserved_MW','balance_residual_MW'}
 def test_invalid_input_preserves_absent_output():
- """Malformed input must "leave OUTPUT.json absent or byte-for-byte unchanged"."""
+ """Malformed input must "leave OUTPUT.json absent or byte-for-byte unchanged" and "an invalid run must not leave temporary, report, journal, summary, ledger, or checkpoint artifacts"."""
  d=base(); d['storage']['charge_efficiency']=0; r,b,_,p=run(d); assert r.returncode!=0 and b is None; assert not list(p.glob('*.tmp')); assert not list(p.glob('*report*')); assert not list(p.glob('*summary*'))
 def test_invalid_input_preserves_sentinel():
- """Negative input must "leave OUTPUT.json absent or byte-for-byte unchanged"."""
+ """Negative input must "leave OUTPUT.json absent or byte-for-byte unchanged" and "an invalid run must not leave temporary, report, journal, summary, ledger, or checkpoint artifacts"."""
  d=base(); d['periods'][1]['load_MW']=-1; r,b,s,p=run(d,True); assert r.returncode!=0 and b==s; assert not list(p.glob('*.tmp')); assert not list(p.glob('*report*')); assert not list(p.glob('*summary*'))
 def test_late_invalid_period_is_atomic():
  """A late invalid period must be rejected after "Validate the complete record before publishing any output"."""
@@ -66,7 +66,7 @@ def test_rejection_leaves_no_temp_or_report_artifacts():
     assert r.returncode != 0 and b is None; assert not list(p.glob('*.tmp')); assert not list(p.glob('*report*')); assert not list(p.glob('*journal*')); assert not list(p.glob('*summary*')); assert not list(p.glob('*ledger*')); assert not list(p.glob('*checkpoint*'))
 
 def test_unwritable_rejection_contract_is_atomic():
-    """An unwritable or invalid publication path must preserve the prior output contract."""
+    """An invalid run must "leave OUTPUT.json absent or byte-for-byte unchanged" and "not leave temporary, report, journal, summary, ledger, or checkpoint artifacts"."""
     d=base(); d['storage']['discharge_efficiency']=0; r,b,_,p=run(d,True)
     assert r.returncode != 0 and b == b'keep'; assert not list(p.glob('*.tmp')); assert not list(p.glob('*report*')); assert not list(p.glob('*ledger*'))
 
