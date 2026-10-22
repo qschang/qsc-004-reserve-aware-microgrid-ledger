@@ -87,3 +87,4 @@ def test_generator_order_is_preserved():
     """Dispatch records must "preserve input order" for generator records."""
     d=base(); d['generators']=list(reversed(d['generators'])); x=good(d)
     assert [g['id'] for g in x['dispatch'][0]['generators']]==[g['id'] for g in d['generators']]
+
