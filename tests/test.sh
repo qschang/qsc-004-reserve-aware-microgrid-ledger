@@ -14,3 +14,4 @@ printf '1.00\n' > "$TMP"
 mv -f "$TMP" "$REWARD_PATH"
 ok=1
 trap - ERR TERM HUP INT
+
