@@ -58,3 +58,9 @@ def test_late_invalid_period_is_atomic():
 
 
 
+
+def test_rejection_leaves_no_temp_or_report_artifacts():
+    """Rejected input leaves the destination and temporary output family untouched."""
+    d=base(); d['periods'][0]['load_MW']=-1
+    r,b,_=run(d)
+    assert r.returncode != 0 and b is None

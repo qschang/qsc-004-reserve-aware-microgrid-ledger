@@ -74,5 +74,25 @@
   "required_models": [
     "deepseek/deepseek-v4-pro"
   ],
-  "model_trials": []
+  "model_trials": [
+    {
+      "model": "deepseek/deepseek-v4-pro",
+      "status": "blocked",
+      "reward": null,
+      "exception": "AuthenticationError 401; invalid for difficulty claim",
+      "checksum": "739de0d6f2af73df62b0391ee0c9a62abf23c6d9505fb0f61c69cab51e7d2d0c"
+    }
+  ],
+  "direct_translation_attack": {
+    "steps": [
+      "Sort generators only by marginal cost and solve each hour independently, which ignores the coupled commitment state and initial transition.",
+      "Apply the storage recurrence once without carrying state across periods, which breaks capacity and efficiency invariants."
+    ],
+    "evidence": [
+      "tests/test_minimum_up_duration_is_respected",
+      "tests/test_initial_off_state_honors_minimum_down_duration",
+      "tests/test_storage_recurrence_uses_efficiencies"
+    ],
+    "expected_failure": "These shortcuts fail independent black-box tests because the public contract couples hours through state, duration, and atomic publication."
+  }
 }
