@@ -11,7 +11,7 @@ write_status(){ chmod 0644 "$STATUS_FILE" 2>/dev/null || true; printf '%s\n' "$1
 on_exit(){ if [ "$completed" -ne 1 ]; then write_status 'INCOMPLETE'; write_reward 0.000; fi; }
 on_signal(){ write_status 'INCOMPLETE: interrupted'; write_reward 0.000; completed=1; exit 0; }
 write_reward 0.000; write_status 'INCOMPLETE'; trap on_exit EXIT; trap on_signal INT TERM HUP
-python3 -m pip install --no-cache-dir --no-index --find-links=/tests/wheels pytest==8.4.1 >/tmp/pytest-install.log 2>&1 || { write_reward 0.000; completed=1; exit 0; }
+python3 -m pip install --no-cache-dir --no-index --find-links=/tests/wheels pytest==8.4.2 >/tmp/pytest-install.log 2>&1 || { write_reward 0.000; completed=1; exit 0; }
 RESULT_XML=$(mktemp "$LOG_DIR/pytest-results.XXXXXX"); rm -f "$RESULT_XML"
 set +e
 timeout --signal=TERM --kill-after=10s 300s python3 -u -m pytest -v -p no:cacheprovider --junitxml="$RESULT_XML" /tests/test_microgrid.py >"$TEST_LOG" 2>&1
