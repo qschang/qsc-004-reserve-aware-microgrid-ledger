@@ -56,3 +56,4 @@ def test_late_invalid_period_is_atomic():
  """A late invalid period cannot publish a prefix."""
  d=base(); d['periods'][2]['renewable_MW']=float('nan'); r,b,_=run(d); assert r.returncode!=0 and b is None
 
+
