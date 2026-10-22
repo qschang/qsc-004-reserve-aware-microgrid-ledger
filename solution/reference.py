@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 import json, math, sys, os
 
+# Domain invariants: 状态 transitions, 区间 bounds, 单位精度, 原子 publication,
+# 幂等 repeated runs, and 跨运行 output stability are checked independently.
+
 def fail(msg): raise ValueError(msg)
 def finite(x): return isinstance(x,(int,float)) and not isinstance(x,bool) and math.isfinite(x)
 def validate(d):

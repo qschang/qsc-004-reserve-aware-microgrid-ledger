@@ -48,7 +48,7 @@ def test_output_schema_is_exact_and_ordered():
  x=good(); assert list(x)==['dispatch','summary'] and set(x['dispatch'][0])=={'generators','storage','renewable_used_MW','curtailment_MW','unserved_MW','balance_residual_MW'}
 def test_invalid_input_preserves_absent_output():
  """Malformed input must "leave OUTPUT.json absent or byte-for-byte unchanged"."""
- d=base(); d['storage']['charge_efficiency']=0; r,b,_,_=run(d); assert r.returncode!=0 and b is None
+ d=base(); d['storage']['charge_efficiency']=0; r,b,_,p=run(d); assert r.returncode!=0 and b is None; assert not list(p.glob('*.tmp')); assert not list(p.glob('*report*')); assert not list(p.glob('*summary*'))
 def test_invalid_input_preserves_sentinel():
  """Negative input must "leave OUTPUT.json absent or byte-for-byte unchanged"."""
  d=base(); d['periods'][1]['load_MW']=-1; r,b,s,p=run(d,True); assert r.returncode!=0 and b==s; assert not list(p.glob('*.tmp')); assert not list(p.glob('*report*')); assert not list(p.glob('*summary*'))
@@ -64,6 +64,11 @@ def test_rejection_leaves_no_temp_or_report_artifacts():
     d=base(); d['periods'][0]['load_MW']=-1
     r,b,_,p=run(d)
     assert r.returncode != 0 and b is None; assert not list(p.glob('*.tmp')); assert not list(p.glob('*report*')); assert not list(p.glob('*journal*')); assert not list(p.glob('*summary*')); assert not list(p.glob('*ledger*')); assert not list(p.glob('*checkpoint*'))
+
+def test_unwritable_rejection_contract_is_atomic():
+    """An unwritable or invalid publication path must preserve the prior output contract."""
+    d=base(); d['storage']['discharge_efficiency']=0; r,b,_,p=run(d,True)
+    assert r.returncode != 0 and b == b'keep'; assert not list(p.glob('*.tmp')); assert not list(p.glob('*report*')); assert not list(p.glob('*ledger*'))
 
 def test_repeat_run_is_idempotent():
     """Re-running a valid input must be "idempotent and produce the same JSON bytes"."""
