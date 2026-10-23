@@ -119,6 +119,9 @@ def test_replace_failure_preserves_existing_output():
     """CASE-QSC004-REPLACE-FAILURE: "leave `OUTPUT.json` absent or byte-for-byte unchanged" if publishing fails."""
     with tempfile.TemporaryDirectory() as td:
         p=Path(td); i=p/'input.json'; o=p/'output.json'; i.write_text(json.dumps(base()))
+        baseline=subprocess.run([sys.executable,APP,str(i),str(o)],capture_output=True,timeout=20)
+        assert baseline.returncode == 0
+        assert set(json.loads(o.read_text(encoding='utf-8'))) == {'dispatch','summary'}
         sentinel=b'previous-result\x00'; o.write_bytes(sentinel)
         code="import os,runpy,sys; script,inp,out=sys.argv[3],sys.argv[1],sys.argv[2]; os.replace=lambda *a,**k: (_ for _ in ()).throw(OSError('injected replace failure')); sys.argv=['reference.py',inp,out]; runpy.run_path(script,run_name='__main__')"
         result=subprocess.run([sys.executable,'-c',code,str(i),str(o),APP],capture_output=True,timeout=20)
