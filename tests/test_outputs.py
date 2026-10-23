@@ -1,7 +1,16 @@
 import json, os, subprocess, sys, tempfile
 from pathlib import Path
 import pytest
+import re
 APP=os.environ.get('MICROGRID_PATH','/app/microgrid.py')
+
+@pytest.fixture(autouse=True)
+def emit_case_id(request):
+    doc = request.function.__doc__ or ''
+    match = re.search(r'CASE-QSC004-[A-Z0-9-]+', doc)
+    if match:
+        print(match.group(0))
+
 def base():
  return {'horizon_hours':3,'generators':[{'id':'cheap','min_MW':2,'max_MW':8,'marginal_cost':10,'startup_cost':5,'ramp_up_MW':8,'ramp_down_MW':8,'min_up_hours':1,'min_down_hours':1,'initial_state':'off'},{'id':'expensive','min_MW':1,'max_MW':10,'marginal_cost':30,'startup_cost':7,'ramp_up_MW':10,'ramp_down_MW':10,'min_up_hours':1,'min_down_hours':1,'initial_state':'off'}],'storage':{'capacity_MWh':4,'initial_MWh':2,'max_charge_MW':2,'max_discharge_MW':2,'charge_efficiency':0.9,'discharge_efficiency':0.8},'periods':[{'load_MW':6,'renewable_MW':2},{'load_MW':3,'renewable_MW':6},{'load_MW':9,'renewable_MW':1}]}
 def run(d,existing=False):
@@ -13,114 +22,83 @@ def good(d=None):
  r,b,_,_=run(base() if d is None else d); return json.loads(b) if r.returncode==0 and b is not None else {'__returncode__':r.returncode,'__stderr__':r.stderr.decode()}
 def rec(x): return x['dispatch']
 def test_minimum_up_duration_is_respected():
- """CASE-QSC004-MIN-UP: an on transition must remain on for its minimum duration."""
+ """CASE-QSC004-MIN-UP: "minimum up/down durations" keep a started unit on."""
  d=base(); d['generators'][0]['min_up_hours']=2; d['generators'][0]['min_down_hours']=0; d['periods']=[{'load_MW':6,'renewable_MW':0},{'load_MW':0,'renewable_MW':0},{'load_MW':0,'renewable_MW':0}]; d['horizon_hours']=3
  x=good(d); a=[g['on'] for q in rec(x) for g in q['generators'] if g['id']=='cheap']; assert a[0] is True and a[1] is True
 def test_initial_off_state_honors_minimum_down_duration():
- """The schedule must satisfy "initial state" and minimum down duration."""
+ """CASE-QSC004-MIN-DOWN: "minimum up/down durations" honor initial off time."""
  d=base(); d['generators'][0]['min_down_hours']=2; d['periods'][0]['load_MW']=0; x=good(d); assert x['dispatch'][0]['generators'][0]['on'] is False
 def test_ramp_limits_include_initial_transition():
- """The schedule must satisfy "ramp limits including the transition from each initial state"."""
+ """CASE-QSC004-RAMP-INITIAL: "ramp limits including the transition from each initial state"."""
  d=base(); d['generators'][0]['ramp_up_MW']=3; x=good(d); p=next(g['power_MW'] for g in x['dispatch'][0]['generators'] if g['id']=='cheap'); assert p<=3+1e-9
 def test_zero_output_when_off():
- """The public record requires "zero output when off"."""
+ """CASE-QSC004-OFF-OUTPUT: "zero output when off" is reflected in every record."""
  x=good(); assert all(g['power_MW']==0 for q in rec(x) for g in q['generators'] if not g['on'])
 def test_storage_recurrence_uses_efficiencies():
- """The schedule must satisfy "storage state recursion with the stated efficiencies"."""
+ """CASE-QSC004-SOC-RECURRENCE: "storage state recursion with the stated efficiencies"."""
  x=good(); s=2.0; q=x['dispatch'][0]; s-=q['storage']['discharge_MW']/0.8; s+=q['storage']['charge_MW']*0.9; assert q['storage']['state_MWh']==pytest.approx(s,abs=1e-9)
 def test_unit_efficiencies_are_valid_boundary_values():
-    """CASE-QSC004-BOUNDARY-EFFICIENCY: efficiencies equal to one are valid."""
+    """CASE-QSC004-BOUNDARY-EFFICIENCY: "greater than zero and at most one" includes one."""
     d=base(); d['storage']['charge_efficiency']=1.0; d['storage']['discharge_efficiency']=1.0
     x=good(d)
     assert 'dispatch' in x
     assert 'summary' in x
 
 def test_storage_capacity_is_never_exceeded():
- """The schedule must satisfy "all capacity limits" for storage."""
+ """CASE-QSC004-SOC-CAPACITY: "all capacity limits" apply to battery energy."""
  x=good(); assert all(0<=q['storage']['state_MWh']<=4+1e-9 for q in rec(x))
 def test_renewable_is_used_before_thermal():
- """CASE-QSC004-RENEWABLE: renewable serves load first and surplus is curtailed."""
+ """CASE-QSC004-RENEWABLE: "Renewable energy is used before thermal generation"."""
  d=base(); d['periods']=[{'load_MW':3,'renewable_MW':8}]; d['horizon_hours']=1; x=good(d); assert x['dispatch'][0]['renewable_used_MW']==5 and x['dispatch'][0]['curtailment_MW']==3 and sum(g['power_MW'] for g in x['dispatch'][0]['generators'])==0
 def test_unserved_load_is_last_resort_and_penalized():
- """The contract requires "Unserved load is allowed only as a last resort" and penalizes it."""
+ """CASE-QSC004-UNSERVED: "Unserved load is allowed only as a last resort" and is penalized."""
  d=base(); d['periods']=[{'load_MW':100,'renewable_MW':0}]; d['horizon_hours']=1; x=good(d); assert x['summary']['total_unserved_MWh']>0 and x['summary']['total_cost']>=10000*x['summary']['total_unserved_MWh']
 def test_balance_residual_is_zero():
- """The schedule must satisfy "load balance each period" with a small residual."""
+ """CASE-QSC004-BALANCE: "load balance each period" has a bounded residual."""
  x=good(); assert all(abs(q['balance_residual_MW'])<=1e-9 for q in rec(x))
 def test_summary_commitment_hours_matches_records():
- """The public output includes a per-generator "commitment_hours" mapping."""
+ """CASE-QSC004-COMMITMENT-SUMMARY: the "commitment_hours" mapping equals on-state records."""
  x=good();
  for gid,n in x['summary']['commitment_hours'].items(): assert n==sum(g['on'] for q in rec(x) for g in q['generators'] if g['id']==gid)
 def test_output_schema_is_exact_and_ordered():
- """The implementation must "Return exactly `dispatch` and `summary`." with the public shape."""
+ """CASE-QSC004-OUTPUT-SCHEMA: "Return exactly `dispatch` and `summary`."""
  x=good(); assert list(x)==['dispatch','summary'] and set(x['dispatch'][0])=={'generators','storage','renewable_used_MW','curtailment_MW','unserved_MW','balance_residual_MW'}
 def test_invalid_input_preserves_absent_output():
- """Malformed input must "leave OUTPUT.json absent or byte-for-byte unchanged" and "an invalid run must not leave temporary, report, journal, summary, ledger, or checkpoint artifacts"."""
+ """CASE-QSC004-REJECT-ABSENT: invalid input must "leave `OUTPUT.json` absent or byte-for-byte unchanged"."""
  d=base(); d['storage']['charge_efficiency']=0; r,b,_,p=run(d)
  assert r.returncode!=0 and b is None
  assert not (p/'o.json').exists()
- assert "report" in "report"
- assert "summary" in "summary"
- assert "exists" in "destination exists"
- assert not list(p.glob('*.tmp'))
- assert not list(p.glob('*report*'))
- assert not list(p.glob('*summary*'))
- assert not list(p.glob('*output*'))
+ for pattern in ('*.tmp','*report*','*journal*','*summary*','*ledger*','*checkpoint*','*output*'): assert not list(p.glob(pattern))
 def test_invalid_input_preserves_sentinel():
- """Negative input must "leave OUTPUT.json absent or byte-for-byte unchanged" and "an invalid run must not leave temporary, report, journal, summary, ledger, or checkpoint artifacts"."""
+ """CASE-QSC004-REJECT-SENTINEL: invalid input must "leave `OUTPUT.json` absent or byte-for-byte unchanged"."""
  d=base(); d['periods'][1]['load_MW']=-1; r,b,s,p=run(d,True)
  assert r.returncode!=0 and b==s
- assert "report" in "report"
- assert "summary" in "summary"
- assert "exists" in "destination exists"
- assert not list(p.glob('*.tmp'))
- assert not list(p.glob('*report*'))
- assert not list(p.glob('*summary*'))
- assert not list(p.glob('*output*'))
+ for pattern in ('*.tmp','*report*','*journal*','*summary*','*ledger*','*checkpoint*','*output*'): assert not list(p.glob(pattern))
 def test_late_invalid_period_is_atomic():
- """A late invalid period must be rejected after "Validate the complete record before publishing any output"."""
+ """CASE-QSC004-REJECT-LATE: `Validate the complete record before publishing any output.`"""
  d=base(); d['periods'][2]['renewable_MW']=float('nan'); r,b,_,p=run(d)
  assert r.returncode!=0 and b is None
  assert not (p/'o.json').exists()
- assert "report" in "report"
- assert "summary" in "summary"
- assert "exists" in "destination exists"
- assert not list(p.glob('*.tmp'))
- assert not list(p.glob('*ledger*'))
- assert not list(p.glob('*checkpoint*'))
- assert not list(p.glob('*output*'))
+ for pattern in ('*.tmp','*report*','*journal*','*summary*','*ledger*','*checkpoint*','*output*'): assert not list(p.glob(pattern))
 
 
 
 
 def test_rejection_leaves_no_temp_or_report_artifacts():
-    """Rejected input leaves "temporary, report, journal, summary, ledger, or checkpoint artifacts" absent."""
+    """CASE-QSC004-REJECT-SECOND: invalid runs "must not leave temporary, report, journal, summary, ledger, or checkpoint artifacts beside the destination"."""
     d=base(); d['periods'][0]['load_MW']=-1
     r,b,_,p=run(d)
     assert r.returncode != 0 and b is None and not (p/'o.json').exists()
-    assert "exists" in "destination exists"
-    assert not list(p.glob('*.tmp'))
-    assert not list(p.glob('*report*'))
-    assert not list(p.glob('*journal*'))
-    assert not list(p.glob('*summary*'))
-    assert not list(p.glob('*ledger*'))
-    assert not list(p.glob('*checkpoint*'))
-    assert not list(p.glob('*output*'))
+    for pattern in ('*.tmp','*report*','*journal*','*summary*','*ledger*','*checkpoint*','*output*'): assert not list(p.glob(pattern))
 
-def test_unwritable_rejection_contract_is_atomic():
-    """An invalid run must "leave OUTPUT.json absent or byte-for-byte unchanged" and "not leave temporary, report, journal, summary, ledger, or checkpoint artifacts"."""
+def test_invalid_discharge_efficiency_preserves_sentinel():
+    """CASE-QSC004-REJECT-EFFICIENCY: invalid input must "leave `OUTPUT.json` absent or byte-for-byte unchanged"."""
     d=base(); d['storage']['discharge_efficiency']=0; r,b,_,p=run(d,True)
     assert r.returncode != 0 and b == b'keep'
-    assert "report" in "report"
-    assert "summary" in "summary"
-    assert "exists" in "destination exists"
-    assert not list(p.glob('*.tmp'))
-    assert not list(p.glob('*report*'))
-    assert not list(p.glob('*ledger*'))
-    assert not list(p.glob('*output*'))
+    for pattern in ('*.tmp','*report*','*journal*','*summary*','*ledger*','*checkpoint*','*output*'): assert not list(p.glob(pattern))
 
 def test_repeat_run_is_idempotent():
-    """Re-running a valid input must be "idempotent and produce the same JSON bytes"."""
+    """CASE-QSC004-IDEMPOTENT: "Re-running the same valid input must be idempotent and produce the same JSON bytes"."""
     with tempfile.TemporaryDirectory() as td:
         p=Path(td); i=p/'input.json'; o=p/'output.json'; i.write_text(json.dumps(base()))
         first=subprocess.run([sys.executable,APP,str(i),str(o)],capture_output=True,timeout=20); b1=o.read_bytes()
@@ -128,12 +106,23 @@ def test_repeat_run_is_idempotent():
         assert first.returncode==0 and second.returncode==0 and b1==b2
 
 def test_startup_cost_is_reported_once():
-    """Total cost must include "startup cost" when a generator changes from off to on."""
-    d=base(); d['horizon_hours']=1; d['periods']=[{'load_MW':6,'renewable_MW':0}]; x=good(d)
-    assert x['summary']['total_cost'] >= 5.0
+    """CASE-QSC004-STARTUP-COST: `Total cost is marginal generation cost plus startup cost plus unserved penalty.`"""
+    d=base(); d['generators']=d['generators'][:1]; d['generators'][0]['min_down_hours']=0; d['storage'].update({'capacity_MWh':0,'initial_MWh':0,'max_charge_MW':0,'max_discharge_MW':0}); d['horizon_hours']=2; d['periods']=[{'load_MW':6,'renewable_MW':0},{'load_MW':6,'renewable_MW':0}]; x=good(d)
+    assert x['summary']['total_cost'] == pytest.approx(125.0, abs=1e-9)
 
 def test_generator_order_is_preserved():
-    """CASE-QSC004-ORDER: dispatch records preserve input generator order."""
+    """CASE-QSC004-ORDER: "preserve input order" in generator records."""
     d=base(); d['generators']=list(reversed(d['generators'])); x=good(d)
     assert [g['id'] for g in x['dispatch'][0]['generators']]==[g['id'] for g in d['generators']]
+
+def test_replace_failure_preserves_existing_output():
+    """CASE-QSC004-REPLACE-FAILURE: "leave `OUTPUT.json` absent or byte-for-byte unchanged" if publishing fails."""
+    with tempfile.TemporaryDirectory() as td:
+        p=Path(td); i=p/'input.json'; o=p/'output.json'; i.write_text(json.dumps(base()))
+        sentinel=b'previous-result\x00'; o.write_bytes(sentinel)
+        code="import os,runpy,sys; script,inp,out=sys.argv[3],sys.argv[1],sys.argv[2]; os.replace=lambda *a,**k: (_ for _ in ()).throw(OSError('injected replace failure')); sys.argv=['reference.py',inp,out]; runpy.run_path(script,run_name='__main__')"
+        result=subprocess.run([sys.executable,'-c',code,str(i),str(o),APP],capture_output=True,timeout=20)
+        assert result.returncode != 0
+        assert o.read_bytes() == sentinel
+        assert not list(p.glob('*.tmp'))
 
