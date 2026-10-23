@@ -21,6 +21,14 @@ def run(d,existing=False):
   output_bytes=o.read_bytes() if o.exists() else None
   observed={'output_exists':o.exists(),'output_bytes':output_bytes,'temporary_files':sorted(x.name for x in p.glob('*.tmp'))}
   return r,output_bytes,sentinel,observed
+def run_raw(raw,existing=False):
+ with tempfile.TemporaryDirectory() as td:
+  p=Path(td); i=p/'i.json'; o=p/'o.json'; i.write_text(raw,encoding='utf-8'); sentinel=b'keep'
+  if existing:o.write_bytes(sentinel)
+  r=subprocess.run([sys.executable,APP,str(i),str(o)],capture_output=True,timeout=20)
+  output_bytes=o.read_bytes() if o.exists() else None
+  observed={'output_exists':o.exists(),'output_bytes':output_bytes,'temporary_files':sorted(x.name for x in p.glob('*.tmp'))}
+  return r,output_bytes,sentinel,observed
 def good(d=None):
  r,b,_,_=run(base() if d is None else d); return json.loads(b) if r.returncode==0 and b is not None else {'__returncode__':r.returncode,'__stderr__':r.stderr.decode()}
 def rec(x): return x['dispatch']
@@ -219,6 +227,36 @@ def test_zero_hour_horizon_is_rejected_atomically():
 def test_empty_generator_set_is_rejected_atomically():
     '''CASE-QSC004-REJECT-EMPTY-GENERATORS: "`generators` must contain at least one unit."'''
     d=base(); d['generators']=[]
+    for existing in (False,True):
+        r,b,s,observed=run(d,existing)
+        assert r.returncode != 0
+        assert b==s if existing else b is None
+        assert observed['output_exists'] is existing
+        assert observed['temporary_files'] == []
+
+def test_duplicate_nested_json_member_is_rejected_atomically():
+    '''CASE-QSC004-REJECT-DUPLICATE-MEMBER: "Reject duplicate object member names at any depth."'''
+    raw='{"horizon_hours":1,"reserve_MW":0,"generators":[{"id":"g","min_MW":0,"max_MW":2,"marginal_cost":1,"startup_cost":0,"ramp_up_MW":2,"ramp_down_MW":2,"min_up_hours":0,"min_down_hours":0,"initial_state":"off"}],"storage":{"capacity_MWh":0,"capacity_MWh":1,"initial_MWh":0,"max_charge_MW":0,"max_discharge_MW":0,"charge_efficiency":1,"discharge_efficiency":1},"periods":[{"load_MW":0,"renewable_MW":0}]}'
+    for existing in (False,True):
+        r,b,s,observed=run_raw(raw,existing)
+        assert r.returncode != 0
+        assert b==s if existing else b is None
+        assert observed['output_exists'] is existing
+        assert observed['temporary_files'] == []
+
+def test_boolean_horizon_is_not_an_integer():
+    '''CASE-QSC004-REJECT-BOOLEAN-HORIZON: "JSON booleans are not numbers or integers."'''
+    d=base(); d['horizon_hours']=True; d['periods']=[d['periods'][0]]
+    for existing in (False,True):
+        r,b,s,observed=run(d,existing)
+        assert r.returncode != 0
+        assert b==s if existing else b is None
+        assert observed['output_exists'] is existing
+        assert observed['temporary_files'] == []
+
+def test_boolean_minimum_up_time_is_rejected():
+    '''CASE-QSC004-REJECT-BOOLEAN-DURATION: "JSON booleans are not numbers or integers."'''
+    d=base(); d['generators'][0]['min_up_hours']=True
     for existing in (False,True):
         r,b,s,observed=run(d,existing)
         assert r.returncode != 0

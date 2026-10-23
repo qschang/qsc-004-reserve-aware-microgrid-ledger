@@ -6,11 +6,17 @@ import json, math, sys, os
 
 def fail(msg): raise ValueError(msg)
 def finite(x): return isinstance(x,(int,float)) and not isinstance(x,bool) and math.isfinite(x)
+def unique_object(pairs):
+    result={}
+    for key,value in pairs:
+        if key in result: fail('duplicate object member')
+        result[key]=value
+    return result
 def validate(d):
     if not isinstance(d,dict) or set(d)!={'horizon_hours','reserve_MW','generators','storage','periods'}: fail('schema')
     H=d['horizon_hours']; reserve=d['reserve_MW']; gs=d['generators']; st=d['storage']; ps=d['periods']
     if not finite(reserve) or reserve<0: fail('reserve requirement')
-    if not isinstance(H,int) or H<1 or H>96 or len(ps)!=H or not isinstance(gs,list) or not gs: fail('horizon')
+    if not isinstance(H,int) or isinstance(H,bool) or H<1 or H>96 or not isinstance(ps,list) or len(ps)!=H or not isinstance(gs,list) or not gs: fail('horizon')
     ids=set()
     for g in gs:
         req={'id','min_MW','max_MW','marginal_cost','startup_cost','ramp_up_MW','ramp_down_MW','min_up_hours','min_down_hours','initial_state'}
@@ -18,7 +24,7 @@ def validate(d):
         ids.add(g['id'])
         for k in req-{'id','initial_state','min_up_hours','min_down_hours'}:
             if not finite(g[k]) or g[k]<0: fail('generator number')
-        if g['max_MW']<g['min_MW'] or not isinstance(g['min_up_hours'],int) or not isinstance(g['min_down_hours'],int) or g['min_up_hours']<0 or g['min_down_hours']<0 or g['initial_state'] not in ('on','off'): fail('generator limits')
+        if g['max_MW']<g['min_MW'] or not isinstance(g['min_up_hours'],int) or isinstance(g['min_up_hours'],bool) or not isinstance(g['min_down_hours'],int) or isinstance(g['min_down_hours'],bool) or g['min_up_hours']<0 or g['min_down_hours']<0 or g['initial_state'] not in ('on','off'): fail('generator limits')
     reqs={'capacity_MWh','initial_MWh','max_charge_MW','max_discharge_MW','charge_efficiency','discharge_efficiency'}
     if not isinstance(st,dict) or set(st)!=reqs: fail('storage schema')
     for k in reqs:
@@ -112,7 +118,7 @@ def main():
     if len(sys.argv)!=3: return 2
     inp,out=sys.argv[1:]
     try:
-        with open(inp,encoding='utf-8') as f: d=json.load(f)
+        with open(inp,encoding='utf-8') as f: d=json.load(f,object_pairs_hook=unique_object)
         result=solve(d)
         tmp=out+'.tmp'
         with open(tmp,'w',encoding='utf-8') as f: json.dump(result,f,ensure_ascii=False,separators=(',',':')); f.write('\n')
