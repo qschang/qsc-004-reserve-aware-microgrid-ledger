@@ -27,6 +27,13 @@ def test_zero_output_when_off():
 def test_storage_recurrence_uses_efficiencies():
  """The schedule must satisfy "storage state recursion with the stated efficiencies"."""
  x=good(); s=2.0; q=x['dispatch'][0]; s-=q['storage']['discharge_MW']/0.8; s+=q['storage']['charge_MW']*0.9; assert q['storage']['state_MWh']==pytest.approx(s,abs=1e-9)
+def test_unit_efficiencies_are_valid_boundary_values():
+    """The input contract permits "charge_efficiency" and "discharge_efficiency" equal to one."""
+    d=base(); d['storage']['charge_efficiency']=1.0; d['storage']['discharge_efficiency']=1.0
+    x=good(d)
+    assert 'dispatch' in x
+    assert 'summary' in x
+
 def test_storage_capacity_is_never_exceeded():
  """The schedule must satisfy "all capacity limits" for storage."""
  x=good(); assert all(0<=q['storage']['state_MWh']<=4+1e-9 for q in rec(x))

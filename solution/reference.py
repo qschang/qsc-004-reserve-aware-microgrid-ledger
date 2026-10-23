@@ -26,10 +26,6 @@ def validate(d):
     for p in ps:
         if not isinstance(p,dict) or set(p)!={'load_MW','renewable_MW'} or not finite(p['load_MW']) or not finite(p['renewable_MW']) or p['load_MW']<0 or p['renewable_MW']<0: fail('period')
 
-def choose_on(g, prev, remaining_on, remaining_off):
-    if prev: return True
-    return remaining_off<=0
-
 def solve(d):
     validate(d); gs=d['generators']; st=d['storage']; ps=d['periods']; H=d['horizon_hours']
     state=st['initial_MWh']; prev={g['id']:(g['initial_state']=='on') for g in gs}; run={g['id']:0 for g in gs}; offrun={g['id']:0 for g in gs}; lastp={g['id']:0.0 for g in gs}
