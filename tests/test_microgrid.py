@@ -44,7 +44,7 @@ def test_summary_commitment_hours_matches_records():
  x=good();
  for gid,n in x['summary']['commitment_hours'].items(): assert n==sum(g['on'] for q in rec(x) for g in q['generators'] if g['id']==gid)
 def test_output_schema_is_exact_and_ordered():
- """The implementation must "Return exactly dispatch and summary" with the public shape."""
+ """The implementation must "Return exactly `dispatch` and `summary`." with the public shape."""
  x=good(); assert list(x)==['dispatch','summary'] and set(x['dispatch'][0])=={'generators','storage','renewable_used_MW','curtailment_MW','unserved_MW','balance_residual_MW'}
 def test_invalid_input_preserves_absent_output():
  """Malformed input must "leave OUTPUT.json absent or byte-for-byte unchanged" and "an invalid run must not leave temporary, report, journal, summary, ledger, or checkpoint artifacts"."""
