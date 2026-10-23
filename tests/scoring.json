@@ -4,88 +4,98 @@
     "test_outputs.py::test_invalid_input_preserves_absent_output",
     "test_outputs.py::test_invalid_input_preserves_sentinel",
     "test_outputs.py::test_late_invalid_period_is_atomic",
-    "test_outputs.py::test_rejection_leaves_no_temp_or_report_artifacts",
+    "test_outputs.py::test_missing_period_field_is_rejected_atomically",
     "test_outputs.py::test_invalid_discharge_efficiency_preserves_sentinel"
   ],
   "tests": {
     "test_outputs.py::test_minimum_up_duration_is_respected": {
       "priority": "core",
       "rationale": "public contract behavior: test_minimum_up_duration_is_respected",
-      "weight": 0.063
+      "weight": 0.0567
     },
     "test_outputs.py::test_initial_off_state_honors_minimum_down_duration": {
       "priority": "core",
       "rationale": "public contract behavior: test_initial_off_state_honors_minimum_down_duration",
-      "weight": 0.063
+      "weight": 0.0567
     },
     "test_outputs.py::test_ramp_limits_include_initial_transition": {
       "priority": "core",
       "rationale": "public contract behavior: test_ramp_limits_include_initial_transition",
-      "weight": 0.063
+      "weight": 0.0567
     },
     "test_outputs.py::test_zero_output_when_off": {
       "priority": "core",
       "rationale": "public contract behavior: test_zero_output_when_off",
-      "weight": 0.063
+      "weight": 0.0567
     },
     "test_outputs.py::test_storage_recurrence_uses_efficiencies": {
       "priority": "core",
       "rationale": "public contract behavior: test_storage_recurrence_uses_efficiencies",
-      "weight": 0.063
+      "weight": 0.0567
     },
     "test_outputs.py::test_storage_capacity_is_never_exceeded": {
       "priority": "core",
       "rationale": "public contract behavior: test_storage_capacity_is_never_exceeded",
-      "weight": 0.063
+      "weight": 0.0567
     },
     "test_outputs.py::test_renewable_is_used_before_thermal": {
       "priority": "core",
       "rationale": "public contract behavior: test_renewable_is_used_before_thermal",
-      "weight": 0.063
+      "weight": 0.0567
     },
     "test_outputs.py::test_unserved_load_is_last_resort_and_penalized": {
       "priority": "core",
       "rationale": "public contract behavior: test_unserved_load_is_last_resort_and_penalized",
-      "weight": 0.063
+      "weight": 0.0567
     },
     "test_outputs.py::test_balance_residual_is_zero": {
       "priority": "core",
       "rationale": "public contract behavior: test_balance_residual_is_zero",
-      "weight": 0.063
+      "weight": 0.0567
     },
     "test_outputs.py::test_summary_commitment_hours_matches_records": {
       "priority": "core",
       "rationale": "public contract behavior: test_summary_commitment_hours_matches_records",
-      "weight": 0.063
+      "weight": 0.0567
     },
     "test_outputs.py::test_output_schema_is_exact_and_ordered": {
       "priority": "core",
       "rationale": "public contract behavior: test_output_schema_is_exact_and_ordered",
-      "weight": 0.063
+      "weight": 0.0567
     },
     "test_outputs.py::test_repeat_run_is_idempotent": {
       "priority": "core",
       "rationale": "public contract behavior: test_repeat_run_is_idempotent",
-      "weight": 0.063
+      "weight": 0.0567
     },
     "test_outputs.py::test_startup_cost_is_reported_once": {
       "priority": "core",
       "rationale": "public contract behavior: test_startup_cost_is_reported_once",
-      "weight": 0.063
+      "weight": 0.0567
     },
     "test_outputs.py::test_generator_order_is_preserved": {
       "priority": "core",
       "rationale": "public contract behavior: test_generator_order_is_preserved",
-      "weight": 0.067
+      "weight": 0.0603
     },
     "test_outputs.py::test_unit_efficiencies_are_valid_boundary_values": {
       "priority": "core",
       "rationale": "public contract behavior: unit efficiency boundary values",
-      "weight": 0.064
+      "weight": 0.0576
     },
     "test_outputs.py::test_replace_failure_preserves_existing_output": {
       "priority": "core",
       "rationale": "public contract behavior: atomic replacement failure preservation",
+      "weight": 0.045
+    },
+    "test_outputs.py::test_renewable_surplus_charges_storage_before_curtailment": {
+      "priority": "core",
+      "rationale": "public energy balance behavior: renewable surplus, battery charge limits, and curtailment",
+      "weight": 0.05
+    },
+    "test_outputs.py::test_storage_is_used_before_unserved_load": {
+      "priority": "core",
+      "rationale": "public energy balance behavior: feasible battery discharge precedes unserved load",
       "weight": 0.05
     }
   },

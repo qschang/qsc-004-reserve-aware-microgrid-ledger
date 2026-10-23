@@ -1,0 +1,26 @@
+task_id: qsc-004
+title: renewable-microgrid-dispatch-ledger
+primary_form_type: F.2 能源系统
+primary_leaf: EN-07
+secondary_leaves: [EN-04]
+category_rationale: 多时段机组状态、爬坡边界、储能效率递推和可再生能量分配共同决定可行的微网调度。
+data_provenance: Tests use hand-authored synthetic JSON fixtures with no random seed and claim no real site or telemetry provenance.
+originality_checks: Compared against the user-supplied YEL task summaries as process comparators and local Harbor packages; only general patterns such as local reproducibility, explicit contracts, independently checked cases, and atomic publication were adopted. No prompt, fixture, or solution was copied.
+expected_result_rationale: Dispatch checks use direct power-balance identities and hand calculations. The two-period storage case charges 2 MW for one hour at 0.9 efficiency, raising stored energy from 2 to 3.8 MWh; it then delivers 2 MW for one hour at 0.8 discharge efficiency, leaving 1.3 MWh. Small commitment and ramp cases are checked directly against their stated limits.
+challenges:
+  - id: UNIT-01
+    reasoning_failure: Ignoring initial commitment state, minimum up/down time, or the first-period ramp boundary can produce an infeasible schedule.
+    observable_symptom: A unit switches during a prohibited interval or first-period output exceeds its initial-state ramp allowance.
+    test_ids: [CASE-QSC004-MIN-UP, CASE-QSC004-MIN-DOWN, CASE-QSC004-RAMP-INITIAL]
+    independent_validation: Recompute each unit's on/off transition sequence and power delta from the input, including the initial transition.
+  - id: STOR-02
+    reasoning_failure: Applying charge/discharge efficiency on the wrong side, ignoring power/energy limits, or curtailing surplus before feasible charging changes state and delivered energy.
+    observable_symptom: Reported state differs from the period recurrence, or a feasible charge/discharge opportunity is replaced by curtailment or unserved load.
+    test_ids: [CASE-QSC004-SOC-RECURRENCE, CASE-QSC004-SURPLUS-CHARGE, CASE-QSC004-STORAGE-LAST-RESORT, CASE-QSC004-SOC-CAPACITY]
+    independent_validation: Calculate stored-energy changes as eta_charge times charge minus discharge divided by eta_discharge, then check each boundary independently.
+  - id: BAL-03
+    reasoning_failure: Mixing load supply, renewable use, thermal output, storage flows, curtailment, and unserved load breaks the one-hour power balance or cost accounting.
+    observable_symptom: Per-period balance residual is nonzero, renewable is displaced by thermal output, or unserved energy is not priced at the declared penalty.
+    test_ids: [CASE-QSC004-RENEWABLE, CASE-QSC004-BALANCE, CASE-QSC004-UNSERVED, CASE-QSC004-STARTUP-COST]
+    independent_validation: Independently sum renewable, thermal, discharge, charge, and unserved terms for each period; recompute marginal, startup, and unserved costs.
+corpus_version: four-domain-expert-corpus-0.1.0

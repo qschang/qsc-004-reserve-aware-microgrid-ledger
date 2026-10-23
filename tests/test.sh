@@ -1,7 +1,7 @@
 #!/bin/bash
 set -Eeuo pipefail
 LOG_DIR=/logs/verifier
-REWARD_FILE="$LOG_DIR/reward.txt"
+REWARD_FILE=/logs/verifier/reward.txt
 STATUS_FILE="$LOG_DIR/verification-status.txt"
 TEST_LOG="$LOG_DIR/test-stdout.txt"
 completed=0
@@ -10,7 +10,7 @@ write_reward(){ chmod 0644 "$REWARD_FILE" 2>/dev/null || true; printf '%s\n' "$1
 write_status(){ chmod 0644 "$STATUS_FILE" 2>/dev/null || true; printf '%s\n' "$1" > "$STATUS_FILE"; chmod 0444 "$STATUS_FILE"; }
 on_exit(){ if [ "$completed" -ne 1 ]; then write_status 'INCOMPLETE'; write_reward 0.000; fi; }
 on_signal(){ write_status 'INCOMPLETE: interrupted'; write_reward 0.000; completed=1; exit 0; }
-write_reward 0.000; write_status 'INCOMPLETE'; trap on_exit EXIT; trap on_signal INT TERM HUP
+printf '0.000\n' > /logs/verifier/reward.txt; write_status 'INCOMPLETE'; trap on_exit EXIT; trap on_signal INT TERM HUP
 python3 -m pip install --no-cache-dir --no-index --find-links=/tests/wheels pytest==8.4.2 >/tmp/pytest-install.log 2>&1 || { write_reward 0.000; completed=1; exit 0; }
 RESULT_XML=$(mktemp "$LOG_DIR/pytest-results.XXXXXX"); rm -f "$RESULT_XML"
 set +e
