@@ -13,8 +13,9 @@ def good(d=None):
  r,b,_,_=run(base() if d is None else d); return json.loads(b) if r.returncode==0 and b is not None else {'__returncode__':r.returncode,'__stderr__':r.stderr.decode()}
 def rec(x): return x['dispatch']
 def test_minimum_up_duration_is_respected():
- """The schedule must satisfy "minimum up/down durations" after commitment."""
- x=good(); a=[g['on'] for q in rec(x) for g in q['generators'] if g['id']=='cheap']; assert not (a[0] and not a[1] and 1 < base()['generators'][0]['min_up_hours'])
+ """CASE-QSC004-MIN-UP: an on transition must remain on for its minimum duration."""
+ d=base(); d['generators'][0]['min_up_hours']=2; d['generators'][0]['min_down_hours']=0; d['periods']=[{'load_MW':6,'renewable_MW':0},{'load_MW':0,'renewable_MW':0},{'load_MW':0,'renewable_MW':0}]; d['horizon_hours']=3
+ x=good(d); a=[g['on'] for q in rec(x) for g in q['generators'] if g['id']=='cheap']; assert a[0] is True and a[1] is True
 def test_initial_off_state_honors_minimum_down_duration():
  """The schedule must satisfy "initial state" and minimum down duration."""
  d=base(); d['generators'][0]['min_down_hours']=2; d['periods'][0]['load_MW']=0; x=good(d); assert x['dispatch'][0]['generators'][0]['on'] is False
@@ -38,8 +39,8 @@ def test_storage_capacity_is_never_exceeded():
  """The schedule must satisfy "all capacity limits" for storage."""
  x=good(); assert all(0<=q['storage']['state_MWh']<=4+1e-9 for q in rec(x))
 def test_renewable_is_used_before_thermal():
- """The contract requires "Renewable energy is used before thermal generation"."""
- d=base(); d['periods']=[{'load_MW':3,'renewable_MW':8}]; d['horizon_hours']=1; x=good(d); assert x['dispatch'][0]['renewable_used_MW']==5 and x['dispatch'][0]['curtailment_MW']>=0
+ """CASE-QSC004-RENEWABLE: renewable serves load first and surplus is curtailed."""
+ d=base(); d['periods']=[{'load_MW':3,'renewable_MW':8}]; d['horizon_hours']=1; x=good(d); assert x['dispatch'][0]['renewable_used_MW']==5 and x['dispatch'][0]['curtailment_MW']==3 and sum(g['power_MW'] for g in x['dispatch'][0]['generators'])==0
 def test_unserved_load_is_last_resort_and_penalized():
  """The contract requires "Unserved load is allowed only as a last resort" and penalizes it."""
  d=base(); d['periods']=[{'load_MW':100,'renewable_MW':0}]; d['horizon_hours']=1; x=good(d); assert x['summary']['total_unserved_MWh']>0 and x['summary']['total_cost']>=10000*x['summary']['total_unserved_MWh']
