@@ -28,7 +28,7 @@ def test_storage_recurrence_uses_efficiencies():
  """The schedule must satisfy "storage state recursion with the stated efficiencies"."""
  x=good(); s=2.0; q=x['dispatch'][0]; s-=q['storage']['discharge_MW']/0.8; s+=q['storage']['charge_MW']*0.9; assert q['storage']['state_MWh']==pytest.approx(s,abs=1e-9)
 def test_unit_efficiencies_are_valid_boundary_values():
-    """The input contract permits "charge_efficiency" and "discharge_efficiency" equal to one."""
+    """CASE-QSC004-BOUNDARY-EFFICIENCY: efficiencies equal to one are valid."""
     d=base(); d['storage']['charge_efficiency']=1.0; d['storage']['discharge_efficiency']=1.0
     x=good(d)
     assert 'dispatch' in x
@@ -132,7 +132,7 @@ def test_startup_cost_is_reported_once():
     assert x['summary']['total_cost'] >= 5.0
 
 def test_generator_order_is_preserved():
-    """Dispatch records must "preserve input order" for generator records."""
+    """CASE-QSC004-ORDER: dispatch records preserve input generator order."""
     d=base(); d['generators']=list(reversed(d['generators'])); x=good(d)
     assert [g['id'] for g in x['dispatch'][0]['generators']]==[g['id'] for g in d['generators']]
 
