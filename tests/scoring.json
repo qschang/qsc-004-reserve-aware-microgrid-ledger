@@ -8,7 +8,11 @@
     "test_outputs.py::test_invalid_discharge_efficiency_preserves_sentinel",
     "test_outputs.py::test_must_run_output_is_reserved_before_merit_dispatch",
     "test_outputs.py::test_must_run_surplus_uses_storage_capacity",
-    "test_outputs.py::test_unabsorbable_must_run_surplus_is_rejected_atomically"
+    "test_outputs.py::test_unabsorbable_must_run_surplus_is_rejected_atomically",
+    "test_outputs.py::test_reserve_report_handles_each_single_unit_outage",
+    "test_outputs.py::test_storage_alone_supplies_reserve_when_all_generators_are_off",
+    "test_outputs.py::test_storage_contingency_reserve_is_limited_by_energy_and_efficiency",
+    "test_outputs.py::test_reserve_shortfall_rejects_atomically"
   ],
   "tests": {
     "test_outputs.py::test_minimum_up_duration_is_respected": {

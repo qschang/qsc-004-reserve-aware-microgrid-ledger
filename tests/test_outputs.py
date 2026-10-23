@@ -12,7 +12,7 @@ def emit_case_id(request):
         print(match.group(0))
 
 def base():
- return {'horizon_hours':3,'generators':[{'id':'cheap','min_MW':2,'max_MW':8,'marginal_cost':10,'startup_cost':5,'ramp_up_MW':8,'ramp_down_MW':8,'min_up_hours':1,'min_down_hours':1,'initial_state':'off'},{'id':'expensive','min_MW':1,'max_MW':10,'marginal_cost':30,'startup_cost':7,'ramp_up_MW':10,'ramp_down_MW':10,'min_up_hours':1,'min_down_hours':1,'initial_state':'off'}],'storage':{'capacity_MWh':4,'initial_MWh':2,'max_charge_MW':2,'max_discharge_MW':2,'charge_efficiency':0.9,'discharge_efficiency':0.8},'periods':[{'load_MW':6,'renewable_MW':2},{'load_MW':3,'renewable_MW':6},{'load_MW':9,'renewable_MW':1}]}
+ return {'horizon_hours':3,'reserve_MW':0,'generators':[{'id':'cheap','min_MW':2,'max_MW':8,'marginal_cost':10,'startup_cost':5,'ramp_up_MW':8,'ramp_down_MW':8,'min_up_hours':1,'min_down_hours':1,'initial_state':'off'},{'id':'expensive','min_MW':1,'max_MW':10,'marginal_cost':30,'startup_cost':7,'ramp_up_MW':10,'ramp_down_MW':10,'min_up_hours':1,'min_down_hours':1,'initial_state':'off'}],'storage':{'capacity_MWh':4,'initial_MWh':2,'max_charge_MW':2,'max_discharge_MW':2,'charge_efficiency':0.9,'discharge_efficiency':0.8},'periods':[{'load_MW':6,'renewable_MW':2},{'load_MW':3,'renewable_MW':6},{'load_MW':9,'renewable_MW':1}]}
 def run(d,existing=False):
  with tempfile.TemporaryDirectory() as td:
   p=Path(td); i=p/'i.json'; o=p/'o.json'; i.write_text(json.dumps(d)); sentinel=b'keep';
@@ -59,6 +59,36 @@ def test_must_run_surplus_uses_storage_capacity():
 def test_unabsorbable_must_run_surplus_is_rejected_atomically():
  '''CASE-QSC004-MUST-RUN-INFEASIBLE: "if the resulting surplus cannot be absorbed while satisfying the storage limits, reject the input as infeasible and preserve the output path."'''
  d=base(); d['generators']=d['generators'][:1]; d['generators'][0].update({'min_MW':2,'max_MW':2,'min_up_hours':1,'min_down_hours':0,'initial_state':'on'}); d['horizon_hours']=1; d['periods']=[{'load_MW':0,'renewable_MW':0}]; d['storage'].update({'capacity_MWh':0,'initial_MWh':0,'max_charge_MW':0,'max_discharge_MW':0})
+ for existing in (False,True):
+  r,b,s,observed=run(d,existing)
+  assert r.returncode!=0
+  assert b==s if existing else b is None
+  assert observed['output_exists'] is existing and observed['temporary_files']==[]
+def test_reserve_report_handles_each_single_unit_outage():
+ '''CASE-QSC004-N1-RESERVE: "For each online generator in turn, treat that unit as unavailable and sum the remaining online-generator reserve plus storage reserve."'''
+ d=base(); d['generators']=[{'id':'beta','min_MW':2,'max_MW':6,'marginal_cost':10,'startup_cost':0,'ramp_up_MW':6,'ramp_down_MW':6,'min_up_hours':1,'min_down_hours':0,'initial_state':'on'},{'id':'alpha','min_MW':2,'max_MW':6,'marginal_cost':20,'startup_cost':0,'ramp_up_MW':6,'ramp_down_MW':6,'min_up_hours':1,'min_down_hours':0,'initial_state':'on'}]
+ d['horizon_hours']=1; d['reserve_MW']=4.5; d['periods']=[{'load_MW':4,'renewable_MW':0}]; d['storage'].update({'capacity_MWh':1,'initial_MWh':1,'max_charge_MW':0,'max_discharge_MW':2})
+ r=good(d)['dispatch'][0]['reserve']
+ assert r=={'required_MW':4.5,'available_MW':4.8,'limiting_outage_id':'alpha'}
+def test_storage_alone_supplies_reserve_when_all_generators_are_off():
+ '''CASE-QSC004-RESERVE-STORAGE-ONLY: "If no generator is online, `available_MW` is storage reserve alone and `limiting_outage_id` is `null`."'''
+ d=base(); d['generators']=[d['generators'][0]]; d['generators'][0].update({'min_MW':1,'max_MW':4,'initial_state':'off','min_up_hours':0,'min_down_hours':0}); d['horizon_hours']=1; d['reserve_MW']=1.2; d['periods']=[{'load_MW':0,'renewable_MW':0}]; d['storage'].update({'capacity_MWh':2,'initial_MWh':1.5,'max_charge_MW':0,'max_discharge_MW':2})
+ r=good(d)['dispatch'][0]['reserve']
+ assert r['required_MW']==1.2 and r['available_MW']==pytest.approx(1.2,abs=1e-9) and r['limiting_outage_id'] is None
+def test_storage_contingency_reserve_is_limited_by_energy_and_efficiency():
+ '''CASE-QSC004-RESERVE-STORAGE-ENERGY: "Storage contributes `min(max_discharge_MW - discharge_MW, state_MWh * discharge_efficiency)` MW."'''
+ d=base(); d['generators']=d['generators'][:1]; d['generators'][0].update({'min_MW':2,'max_MW':2,'initial_state':'on','min_up_hours':1,'min_down_hours':0}); d['horizon_hours']=1; d['reserve_MW']=0.5; d['periods']=[{'load_MW':2,'renewable_MW':0}]; d['storage'].update({'capacity_MWh':1,'initial_MWh':1,'max_charge_MW':0,'max_discharge_MW':2})
+ r=good(d)['dispatch'][0]['reserve']
+ assert r['available_MW']==pytest.approx(0.8,abs=1e-9) and r['limiting_outage_id']=='cheap'
+ d['storage']['initial_MWh']=0.5
+ for existing in (False,True):
+  proc,b,s,observed=run(d,existing)
+  assert proc.returncode!=0
+  assert b==s if existing else b is None
+  assert observed['output_exists'] is existing and observed['temporary_files']==[]
+def test_reserve_shortfall_rejects_atomically():
+ '''CASE-QSC004-RESERVE-SHORTFALL: "Reject the complete input atomically if any hour's available reserve is more than `1e-9` MW below `reserve_MW`."'''
+ d=base(); d['generators']=d['generators'][:1]; d['generators'][0].update({'min_MW':2,'max_MW':2,'initial_state':'on','min_up_hours':1,'min_down_hours':0}); d['horizon_hours']=1; d['reserve_MW']=0.1; d['periods']=[{'load_MW':2,'renewable_MW':0}]; d['storage'].update({'capacity_MWh':0,'initial_MWh':0,'max_charge_MW':0,'max_discharge_MW':0})
  for existing in (False,True):
   r,b,s,observed=run(d,existing)
   assert r.returncode!=0
@@ -130,8 +160,9 @@ def test_summary_commitment_hours_matches_records():
 def test_output_schema_is_exact_and_ordered():
  '''CASE-QSC004-OUTPUT-SCHEMA: "Return one UTF-8 JSON object with exactly two top-level keys, in this order: `dispatch`, then `summary`."'''
  x=good(); assert list(x)==['dispatch','summary']
- assert list(x['dispatch'][0])==['generators','storage','renewable_used_MW','curtailment_MW','unserved_MW','balance_residual_MW']
+ assert list(x['dispatch'][0])==['generators','storage','reserve','renewable_used_MW','curtailment_MW','unserved_MW','balance_residual_MW']
  assert list(x['dispatch'][0]['storage'])==['charge_MW','discharge_MW','state_MWh']
+ assert list(x['dispatch'][0]['reserve'])==['required_MW','available_MW','limiting_outage_id']
  assert all(list(g)==['id','on','power_MW'] for g in x['dispatch'][0]['generators'])
  assert list(x['summary'])==['total_cost','total_unserved_MWh','total_renewable_curtailment_MWh','final_storage_MWh','commitment_hours']
 def test_invalid_input_preserves_absent_output():

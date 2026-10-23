@@ -8,4 +8,6 @@ The reference implementation is intentionally independent of the verifier and co
 
 Initial minimum-down expiry is covered by `CASE-QSC004-INITIAL-DOWN-EXPIRY`; this is a transition-boundary cross-check for `UNIT-01`.
 
+4. `RES-04`: N-1 spinning-reserve accounting across online-unit outages, the no-online-unit case, and deliverable storage energy. Reserve is a validation constraint over the fixed dispatch policy. Tests: `CASE-QSC004-N1-RESERVE`, `CASE-QSC004-RESERVE-STORAGE-ONLY`, `CASE-QSC004-RESERVE-STORAGE-ENERGY`, and `CASE-QSC004-RESERVE-SHORTFALL`.
+
 The expected values are checked from the public equations and hand calculations, not copied from verifier output. Deterministic ordering, exact output shape, commitment accounting, and atomic rejection are additional contract-integrity checks rather than separate domain-difficulty axes.

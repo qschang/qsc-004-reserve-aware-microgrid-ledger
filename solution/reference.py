@@ -7,8 +7,9 @@ import json, math, sys, os
 def fail(msg): raise ValueError(msg)
 def finite(x): return isinstance(x,(int,float)) and not isinstance(x,bool) and math.isfinite(x)
 def validate(d):
-    if not isinstance(d,dict) or set(d)!={'horizon_hours','generators','storage','periods'}: fail('schema')
-    H=d['horizon_hours']; gs=d['generators']; st=d['storage']; ps=d['periods']
+    if not isinstance(d,dict) or set(d)!={'horizon_hours','reserve_MW','generators','storage','periods'}: fail('schema')
+    H=d['horizon_hours']; reserve=d['reserve_MW']; gs=d['generators']; st=d['storage']; ps=d['periods']
+    if not finite(reserve) or reserve<0: fail('reserve requirement')
     if not isinstance(H,int) or H<1 or H>96 or len(ps)!=H or not isinstance(gs,list) or not gs: fail('horizon')
     ids=set()
     for g in gs:
@@ -27,7 +28,7 @@ def validate(d):
         if not isinstance(p,dict) or set(p)!={'load_MW','renewable_MW'} or not finite(p['load_MW']) or not finite(p['renewable_MW']) or p['load_MW']<0 or p['renewable_MW']<0: fail('period')
 
 def solve(d):
-    validate(d); gs=d['generators']; st=d['storage']; ps=d['periods']; H=d['horizon_hours']
+    validate(d); gs=d['generators']; st=d['storage']; ps=d['periods']; H=d['horizon_hours']; reserve_required=d['reserve_MW']
     state=st['initial_MWh']; prev={g['id']:(g['initial_state']=='on') for g in gs}; run={g['id']:0 for g in gs}; offrun={g['id']:0 for g in gs}; lastp={g['id']:0.0 for g in gs}
     out=[]; total_cost=0.0; unserved=0.0; curt=0.0; commit={g['id']:0 for g in gs}
     for t,p in enumerate(ps):
@@ -93,7 +94,18 @@ def solve(d):
         total_cost += remaining*10000.0
         thermal=sum(x['power_MW'] for x in recgen)
         balance=renewable_used+thermal+discharge-charge+remaining-p['load_MW']
-        out.append({'generators':recgen,'storage':{'charge_MW':charge,'discharge_MW':discharge,'state_MWh':state},'renewable_used_MW':renewable_used,'curtailment_MW':curtailment,'unserved_MW':remaining,'balance_residual_MW':balance})
+        storage_reserve=min(max(0.0,st['max_discharge_MW']-discharge),state*st['discharge_efficiency'])
+        generator_reserve={g['id']:min(max(0.0,g['max_MW']-power[g['id']]),g['ramp_up_MW']) if on_flags[g['id']] else 0.0 for g in gs}
+        online=sorted(gid for gid in generator_reserve if on_flags[gid])
+        if online:
+            outage_reserves={lost:storage_reserve+sum(value for gid,value in generator_reserve.items() if gid!=lost) for lost in online}
+            limiting_id=min(online,key=lambda gid:(outage_reserves[gid],gid))
+            available_reserve=outage_reserves[limiting_id]
+        else:
+            limiting_id=None
+            available_reserve=storage_reserve
+        if available_reserve+1e-9<reserve_required: fail('spinning reserve infeasible')
+        out.append({'generators':recgen,'storage':{'charge_MW':charge,'discharge_MW':discharge,'state_MWh':state},'reserve':{'required_MW':reserve_required,'available_MW':available_reserve,'limiting_outage_id':limiting_id},'renewable_used_MW':renewable_used,'curtailment_MW':curtailment,'unserved_MW':remaining,'balance_residual_MW':balance})
     return {'dispatch':out,'summary':{'total_cost':total_cost,'total_unserved_MWh':unserved,'total_renewable_curtailment_MWh':curt,'final_storage_MWh':state,'commitment_hours':commit}}
 
 def main():
