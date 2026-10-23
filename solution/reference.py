@@ -31,31 +31,59 @@ def solve(d):
     state=st['initial_MWh']; prev={g['id']:(g['initial_state']=='on') for g in gs}; run={g['id']:0 for g in gs}; offrun={g['id']:0 for g in gs}; lastp={g['id']:0.0 for g in gs}
     out=[]; total_cost=0.0; unserved=0.0; curt=0.0; commit={g['id']:0 for g in gs}
     for t,p in enumerate(ps):
-        renewable=min(p['load_MW'],p['renewable_MW']); excess=max(0.0,p['renewable_MW']-p['load_MW']); deficit=max(0.0,p['load_MW']-renewable)
-        eligible=[]
-        for g in sorted(gs,key=lambda x:(x['marginal_cost'],x['id'])):
-            must_on=prev[g['id']] and run[g['id']]<g['min_up_hours']
-            blocked_off=(not prev[g['id']] and offrun[g['id']]<g['min_down_hours'])
-            if must_on or (deficit>0 and not blocked_off): eligible.append((g,must_on))
-        gen=[]; remaining=deficit
-        for g,must in eligible:
-            on=True
-            lo=g['min_MW']; hi=g['max_MW']
-            if prev[g['id']]: lo=max(lo,lastp[g['id']]-g['ramp_down_MW']); hi=min(hi,lastp[g['id']]+g['ramp_up_MW'])
-            else: lo=max(lo,0.0); hi=min(hi,g['ramp_up_MW'])
-            if hi<lo-1e-12: fail('ramp infeasible')
-            power=min(hi,max(lo,remaining)) if remaining>0 else (lo if must else 0.0)
-            if power>0 or must: remaining-=power; gen.append((g,on,power))
-            else: gen.append((g,False,0.0))
+        renewable_for_load=min(p['load_MW'],p['renewable_MW'])
+        renewable_surplus=p['renewable_MW']-renewable_for_load
+        deficit=p['load_MW']-renewable_for_load
+        ordered=sorted(gs,key=lambda x:(x['marginal_cost'],x['id']))
+        must_on={}
+        limits={}
+        power={g['id']:0.0 for g in gs}
+        on_flags={g['id']:False for g in gs}
         for g in gs:
-            if not any(x[0]['id']==g['id'] for x in gen): gen.append((g,False,0.0))
+            gid=g['id']
+            forced_by_time=prev[gid] and run[gid]<g['min_up_hours']
+            ramp_floor=max(0.0,lastp[gid]-g['ramp_down_MW']) if prev[gid] else 0.0
+            forced_by_ramp=prev[gid] and ramp_floor>1e-12
+            must_on[gid]=forced_by_time or forced_by_ramp
+            blocked_off=not prev[gid] and offrun[gid]<g['min_down_hours']
+            lo=max(g['min_MW'],ramp_floor) if prev[gid] else g['min_MW']
+            hi=min(g['max_MW'],lastp[gid]+g['ramp_up_MW']) if prev[gid] else min(g['max_MW'],g['ramp_up_MW'])
+            limits[gid]=(lo,hi,blocked_off)
+            if must_on[gid]:
+                if hi<lo-1e-12: fail('infeasible')
+                power[gid]=lo
+                on_flags[gid]=True
+        remaining=max(0.0,deficit-sum(power.values()))
+        for g in ordered:
+            gid=g['id']; lo,hi,blocked_off=limits[gid]
+            if blocked_off or hi<power[gid]+1e-12:
+                continue
+            if not must_on[gid] and power[gid]==0.0:
+                if remaining<=1e-12:
+                    continue
+                if remaining+1e-12<lo or hi+1e-12<lo:
+                    continue
+                power[gid]=lo
+                on_flags[gid]=True
+                remaining=max(0.0,remaining-lo)
+            extra=min(max(0.0,hi-power[gid]),remaining)
+            power[gid]+=extra
+            remaining-=extra
+        thermal_surplus=max(0.0,sum(power.values())-deficit)
         discharge=min(st['max_discharge_MW'],state*st['discharge_efficiency'],remaining)
-        state-=discharge/st['discharge_efficiency']; remaining-=discharge
-        charge=min(st['max_charge_MW'],max(0.0,(st['capacity_MWh']-state)/st['charge_efficiency']),excess)
-        state+=charge*st['charge_efficiency']; excess-=charge
-        curt+=excess; unserved+=remaining
+        state-=discharge/st['discharge_efficiency']; remaining=max(0.0,remaining-discharge)
+        charge_limit=min(st['max_charge_MW'],max(0.0,(st['capacity_MWh']-state)/st['charge_efficiency']))
+        charge=min(charge_limit,renewable_surplus+thermal_surplus)
+        thermal_absorbed=max(0.0,charge-renewable_surplus)
+        if thermal_absorbed+1e-12<thermal_surplus: fail('infeasible')
+        state+=charge*st['charge_efficiency']
+        renewable_charged=min(renewable_surplus,charge)
+        renewable_used=renewable_for_load+renewable_charged
+        curtailment=renewable_surplus-renewable_charged
+        curt+=curtailment; unserved+=remaining
         recgen=[]
-        for g,on,powr in sorted(gen,key=lambda x:gs.index(x[0])):
+        for g in gs:
+            gid=g['id']; powr=power[gid]; on=on_flags[gid]
             started=on and not prev[g['id']]
             total_cost += powr*g['marginal_cost'] + (g['startup_cost'] if started else 0.0); commit[g['id']]+=1 if on else 0
             recgen.append({'id':g['id'],'on':bool(on),'power_MW':powr})
@@ -64,9 +92,6 @@ def solve(d):
             prev[g['id']]=on; lastp[g['id']]=powr
         total_cost += remaining*10000.0
         thermal=sum(x['power_MW'] for x in recgen)
-        renewable_used=max(0.0, p['load_MW'] + charge - discharge + remaining - thermal)
-        renewable_used=min(p['renewable_MW'], renewable_used)
-        curtailment=max(0.0, p['renewable_MW']-renewable_used)
         balance=renewable_used+thermal+discharge-charge+remaining-p['load_MW']
         out.append({'generators':recgen,'storage':{'charge_MW':charge,'discharge_MW':discharge,'state_MWh':state},'renewable_used_MW':renewable_used,'curtailment_MW':curtailment,'unserved_MW':remaining,'balance_residual_MW':balance})
     return {'dispatch':out,'summary':{'total_cost':total_cost,'total_unserved_MWh':unserved,'total_renewable_curtailment_MWh':curt,'final_storage_MWh':state,'commitment_hours':commit}}

@@ -28,6 +28,24 @@ def test_minimum_up_duration_is_respected():
  """CASE-QSC004-MIN-UP: "minimum up/down durations" keep a started unit on."""
  d=base(); d['generators'][0]['min_up_hours']=2; d['generators'][0]['min_down_hours']=0; d['periods']=[{'load_MW':6,'renewable_MW':0},{'load_MW':0,'renewable_MW':0},{'load_MW':0,'renewable_MW':0}]; d['horizon_hours']=3
  x=good(d); a=[g['on'] for q in rec(x) for g in q['generators'] if g['id']=='cheap']; assert a[0] is True and a[1] is True
+def test_must_run_output_is_reserved_before_merit_dispatch():
+ """CASE-QSC004-MUST-RUN-BALANCE: minimum-up output must fit into the hourly balance."""
+ d=base(); d['generators'][0].update({'min_MW':0,'max_MW':6,'marginal_cost':1,'min_up_hours':0,'min_down_hours':0}); d['generators'][1].update({'min_MW':2,'max_MW':10,'marginal_cost':30,'min_up_hours':2,'min_down_hours':0}); d['horizon_hours']=2; d['periods']=[{'load_MW':10,'renewable_MW':0},{'load_MW':6,'renewable_MW':0}]; d['storage'].update({'capacity_MWh':0,'initial_MWh':0,'max_charge_MW':0,'max_discharge_MW':0}); x=good(d); q=x['dispatch'][1]
+ assert {g['id']:g['power_MW'] for g in q['generators']}=={'cheap':4,'expensive':2}
+ assert q['unserved_MW']==0 and q['storage']['discharge_MW']>=0 and abs(q['balance_residual_MW'])<=1e-9
+def test_must_run_surplus_uses_storage_capacity():
+ """CASE-QSC004-MUST-RUN-CHARGE: forced thermal surplus may be absorbed within storage limits."""
+ d=base(); d['generators']=d['generators'][:1]; d['generators'][0].update({'min_MW':2,'max_MW':2,'min_up_hours':1,'min_down_hours':0,'initial_state':'on'}); d['horizon_hours']=1; d['periods']=[{'load_MW':0,'renewable_MW':0}]; d['storage'].update({'capacity_MWh':2,'initial_MWh':0,'max_charge_MW':2,'max_discharge_MW':0}); q=good(d)['dispatch'][0]
+ assert q['generators'][0]['power_MW']==2 and q['storage']['charge_MW']==2 and q['storage']['state_MWh']==pytest.approx(1.8,abs=1e-9)
+ assert q['unserved_MW']==0 and abs(q['balance_residual_MW'])<=1e-9
+def test_unabsorbable_must_run_surplus_is_rejected_atomically():
+ """CASE-QSC004-MUST-RUN-INFEASIBLE: forced output with no sink must not publish a ledger."""
+ d=base(); d['generators']=d['generators'][:1]; d['generators'][0].update({'min_MW':2,'max_MW':2,'min_up_hours':1,'min_down_hours':0,'initial_state':'on'}); d['horizon_hours']=1; d['periods']=[{'load_MW':0,'renewable_MW':0}]; d['storage'].update({'capacity_MWh':0,'initial_MWh':0,'max_charge_MW':0,'max_discharge_MW':0})
+ for existing in (False,True):
+  r,b,s,observed=run(d,existing)
+  assert r.returncode!=0
+  assert b==s if existing else b is None
+  assert observed['output_exists'] is existing and observed['temporary_files']==[]
 def test_initial_off_state_honors_minimum_down_duration():
  """CASE-QSC004-MIN-DOWN: "minimum up/down durations" honor initial off time."""
  d=base(); d['generators'][0]['min_down_hours']=2; d['generators'][1]['initial_state']='on'; d['periods']=[{'load_MW':6,'renewable_MW':0}]; d['horizon_hours']=1; q=good(d)['dispatch'][0]
