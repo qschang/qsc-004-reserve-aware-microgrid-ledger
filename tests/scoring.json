@@ -113,17 +113,17 @@
     "test_outputs.py::test_merit_ties_use_generator_id_without_changing_output_order": {
       "priority": "core",
       "rationale": "deterministic merit-order tie break is independent of input presentation order",
-      "weight": 0.03333333333333333
+      "weight": 0.034
     },
     "test_outputs.py::test_startup_cost_does_not_change_merit_order": {
       "priority": "core",
       "rationale": "reported startup cost does not replace marginal-cost dispatch order",
-      "weight": 0.03333333333333333
+      "weight": 0.033
     },
     "test_outputs.py::test_initial_minimum_down_time_expires_after_exact_hours": {
       "priority": "core",
       "rationale": "initial off-state elapsed-time boundary controls the first eligible start",
-      "weight": 0.03333333333333333
+      "weight": 0.033
     }
   },
   "weight_policy": {

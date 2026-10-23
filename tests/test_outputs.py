@@ -77,12 +77,14 @@ def test_reserve_report_handles_each_single_unit_outage():
  d=base(); d['generators']=[{'id':'beta','min_MW':2,'max_MW':6,'marginal_cost':10,'startup_cost':0,'ramp_up_MW':6,'ramp_down_MW':6,'min_up_hours':1,'min_down_hours':0,'initial_state':'on'},{'id':'alpha','min_MW':2,'max_MW':6,'marginal_cost':20,'startup_cost':0,'ramp_up_MW':6,'ramp_down_MW':6,'min_up_hours':1,'min_down_hours':0,'initial_state':'on'}]
  d['horizon_hours']=1; d['reserve_MW']=4.5; d['periods']=[{'load_MW':4,'renewable_MW':0}]; d['storage'].update({'capacity_MWh':1,'initial_MWh':1,'max_charge_MW':0,'max_discharge_MW':2})
  r=good(d)['dispatch'][0]['reserve']
- assert r=={'required_MW':4.5,'available_MW':4.8,'limiting_outage_id':'alpha'}
+ assert r['required_MW']==pytest.approx(4.5,abs=1e-9)
+ assert r['available_MW']==pytest.approx(4.8,abs=1e-9)
+ assert r['limiting_outage_id']=='alpha'
 def test_storage_alone_supplies_reserve_when_all_generators_are_off():
  '''CASE-QSC004-RESERVE-STORAGE-ONLY: "If no generator is online, `available_MW` is storage reserve alone and `limiting_outage_id` is `null`."'''
  d=base(); d['generators']=[d['generators'][0]]; d['generators'][0].update({'min_MW':1,'max_MW':4,'initial_state':'off','min_up_hours':0,'min_down_hours':0}); d['horizon_hours']=1; d['reserve_MW']=1.2; d['periods']=[{'load_MW':0,'renewable_MW':0}]; d['storage'].update({'capacity_MWh':2,'initial_MWh':1.5,'max_charge_MW':0,'max_discharge_MW':2})
  r=good(d)['dispatch'][0]['reserve']
- assert r['required_MW']==1.2 and r['available_MW']==pytest.approx(1.2,abs=1e-9) and r['limiting_outage_id'] is None
+ assert r['required_MW']==pytest.approx(1.2,abs=1e-9) and r['available_MW']==pytest.approx(1.2,abs=1e-9) and r['limiting_outage_id'] is None
 def test_storage_contingency_reserve_is_limited_by_energy_and_efficiency():
  '''CASE-QSC004-RESERVE-STORAGE-ENERGY: "Storage contributes `min(max_discharge_MW - discharge_MW, state_MWh * discharge_efficiency)` MW."'''
  d=base(); d['generators']=d['generators'][:1]; d['generators'][0].update({'min_MW':2,'max_MW':2,'initial_state':'on','min_up_hours':1,'min_down_hours':0}); d['horizon_hours']=1; d['reserve_MW']=0.5; d['periods']=[{'load_MW':2,'renewable_MW':0}]; d['storage'].update({'capacity_MWh':1,'initial_MWh':1,'max_charge_MW':0,'max_discharge_MW':2})
@@ -154,7 +156,7 @@ def test_unserved_load_is_last_resort_and_penalized():
  startup=0
  for q in x['dispatch']:
   for g in q['generators']:
-   if g['on'] and not previous[g['id']]: startup+=next(v['startup_cost'] for v in d['generators'] if v['id']==g['id'])
+   startup+=next(v['startup_cost'] for v in d['generators'] if v['id']==g['id'])*bool(g['on'] and not previous[g['id']])
    previous[g['id']]=g['on']
  assert x['summary']['total_unserved_MWh']>0
  assert x['summary']['total_cost']==pytest.approx(generation+startup+10000*x['summary']['total_unserved_MWh'],abs=1e-9)
@@ -215,7 +217,7 @@ def test_missing_period_field_is_rejected_atomically():
         assert observed['temporary_files'] == []
 
 def test_zero_hour_horizon_is_rejected_atomically():
-    '''CASE-QSC004-REJECT-ZERO-HORIZON: "`horizon_hours` must be an integer from 1 through 96."'''
+    '''CASE-QSC004-REJECT-ZERO-HORIZON: "`horizon_hours` must be a JSON integer from 1 through 96"'''
     d=base(); d['horizon_hours']=0; d['periods']=[]
     for existing in (False,True):
         r,b,s,observed=run(d,existing)
@@ -225,7 +227,7 @@ def test_zero_hour_horizon_is_rejected_atomically():
         assert observed['temporary_files'] == []
 
 def test_empty_generator_set_is_rejected_atomically():
-    '''CASE-QSC004-REJECT-EMPTY-GENERATORS: "`generators` must contain at least one unit."'''
+    '''CASE-QSC004-REJECT-EMPTY-GENERATORS: "`generators` must contain at least one unit"'''
     d=base(); d['generators']=[]
     for existing in (False,True):
         r,b,s,observed=run(d,existing)
