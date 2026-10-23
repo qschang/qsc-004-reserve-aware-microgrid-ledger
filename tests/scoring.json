@@ -60,6 +60,11 @@
       "rationale": "public contract behavior: test_unserved_load_is_last_resort_and_penalized",
       "weight": 0.05
     },
+    "test_outputs.py::test_cost_ledger_accumulates_generation_startups_and_unserved_energy": {
+      "priority": "core",
+      "rationale": "multi-hour marginal generation, startup, and unserved-energy ledger totals",
+      "weight": 0.05
+    },
     "test_outputs.py::test_balance_residual_is_zero": {
       "priority": "core",
       "rationale": "public contract behavior: test_balance_residual_is_zero",
@@ -73,27 +78,27 @@
     "test_outputs.py::test_output_schema_is_exact_and_ordered": {
       "priority": "core",
       "rationale": "public contract behavior: test_output_schema_is_exact_and_ordered",
-      "weight": 0.05
+      "weight": 0.04
     },
     "test_outputs.py::test_repeat_run_is_idempotent": {
       "priority": "core",
       "rationale": "public contract behavior: test_repeat_run_is_idempotent",
-      "weight": 0.05
+      "weight": 0.04
     },
     "test_outputs.py::test_startup_cost_is_reported_once": {
       "priority": "core",
       "rationale": "public contract behavior: test_startup_cost_is_reported_once",
-      "weight": 0.05
+      "weight": 0.04
     },
     "test_outputs.py::test_generator_order_is_preserved": {
       "priority": "core",
       "rationale": "public contract behavior: test_generator_order_is_preserved",
-      "weight": 0.05
+      "weight": 0.04
     },
     "test_outputs.py::test_unit_efficiencies_are_valid_boundary_values": {
       "priority": "core",
       "rationale": "public contract behavior: unit efficiency boundary values",
-      "weight": 0.05
+      "weight": 0.04
     },
     "test_outputs.py::test_replace_failure_preserves_existing_output": {
       "priority": "core",

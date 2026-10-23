@@ -160,6 +160,15 @@ def test_unserved_load_is_last_resort_and_penalized():
    previous[g['id']]=g['on']
  assert x['summary']['total_unserved_MWh']>0
  assert x['summary']['total_cost']==pytest.approx(generation+startup+10000*x['summary']['total_unserved_MWh'],abs=1e-9)
+
+def test_cost_ledger_accumulates_generation_startups_and_unserved_energy():
+ '''CASE-QSC004-COST-LEDGER: "The `total_cost` summary is exactly the sum over all hours of each generator's `power_MW * marginal_cost`, startup costs for off-to-on transitions, and `unserved_MW * 10000.0`; renewable curtailment has no cost."'''
+ d={'horizon_hours':3,'reserve_MW':0,'generators':[{'id':'g','min_MW':2,'max_MW':4,'marginal_cost':3,'startup_cost':7,'ramp_up_MW':4,'ramp_down_MW':4,'min_up_hours':1,'min_down_hours':0,'initial_state':'off'}], 'storage':{'capacity_MWh':0,'initial_MWh':0,'max_charge_MW':0,'max_discharge_MW':0,'charge_efficiency':1,'discharge_efficiency':1}, 'periods':[{'load_MW':3,'renewable_MW':0},{'load_MW':0,'renewable_MW':0},{'load_MW':6,'renewable_MW':0}]}
+ x=good(d); rows=x['dispatch']
+ assert [row['generators'][0]['on'] for row in rows]==[True,False,True]
+ assert [row['unserved_MW'] for row in rows]==pytest.approx([0,0,2],abs=1e-9)
+ assert x['summary']['total_cost']==pytest.approx(7+3*3+7+3*4+2*10000,abs=1e-9)
+ assert x['summary']['total_unserved_MWh']==pytest.approx(sum(row['unserved_MW'] for row in rows),abs=1e-9)
 def test_balance_residual_is_zero():
  '''CASE-QSC004-BALANCE: "For each hour the balance is `renewable_used_MW + sum(generator power_MW) + discharge_MW - charge_MW + unserved_MW = load_MW + balance_residual_MW`."'''
  x=good(); assert all(abs(q['balance_residual_MW'])<=1e-9 for q in rec(x))

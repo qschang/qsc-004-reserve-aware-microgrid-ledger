@@ -1,5 +1,7 @@
 # Renewable microgrid dispatch ledger
 
+The `total_unserved_MWh` summary is the sum of `unserved_MW` over all one-hour periods.
+
 Implement `/app/microgrid.py` and make it executable through:
 
 ```text
