@@ -43,7 +43,7 @@ def test_must_run_output_is_reserved_before_merit_dispatch():
  assert {g['id']:g['power_MW'] for g in q['generators']}=={'cheap':4,'expensive':2}
  assert q['unserved_MW']==0 and q['storage']['discharge_MW']>=0 and abs(q['balance_residual_MW'])<=1e-9
 def test_ramp_down_floor_forces_must_run_surplus_into_storage():
- '''CASE-QSC004-RAMP-DOWN-STORAGE: "Units that must stay on because of their minimum up time or ramp-down limit remain committed."'''
+ '''CASE-QSC004-RAMP-DOWN-STORAGE: "Units that must stay on because of their minimum up time or ramp-down limit remain committed"'''
  d={'horizon_hours':5,'reserve_MW':0,'generators':[{'id':'unit','min_MW':0,'max_MW':10,'marginal_cost':2,'startup_cost':9,'ramp_up_MW':10,'ramp_down_MW':2,'min_up_hours':2,'min_down_hours':0,'initial_state':'off'}], 'storage':{'capacity_MWh':20,'initial_MWh':0,'max_charge_MW':8,'max_discharge_MW':0,'charge_efficiency':1,'discharge_efficiency':1}, 'periods':[{'load_MW':8,'renewable_MW':0},{'load_MW':0,'renewable_MW':0},{'load_MW':0,'renewable_MW':0},{'load_MW':0,'renewable_MW':0},{'load_MW':0,'renewable_MW':0}]}
  x=good(d); rows=x['dispatch']
  assert [row['generators'][0]['on'] for row in rows]==[True,True,True,True,False]
@@ -52,7 +52,7 @@ def test_ramp_down_floor_forces_must_run_surplus_into_storage():
  assert [row['storage']['state_MWh'] for row in rows]==pytest.approx([0,6,10,12,12],abs=1e-9)
  assert all(abs(row['balance_residual_MW'])<=1e-9 for row in rows)
 def test_shutdown_starts_minimum_down_lockout_for_following_hours():
- '''CASE-QSC004-DOWN-LOCKOUT: "When a unit changes commitment in hour t, that hour counts as the first hour in its new state."'''
+ '''CASE-QSC004-DOWN-LOCKOUT: "When a unit changes commitment in hour t, that hour counts as the first hour in its new state"'''
  d={'horizon_hours':6,'reserve_MW':0,'generators':[{'id':'unit','min_MW':0,'max_MW':5,'marginal_cost':1,'startup_cost':2,'ramp_up_MW':5,'ramp_down_MW':5,'min_up_hours':1,'min_down_hours':2,'initial_state':'off'}], 'storage':{'capacity_MWh':0,'initial_MWh':0,'max_charge_MW':0,'max_discharge_MW':0,'charge_efficiency':1,'discharge_efficiency':1}, 'periods':[{'load_MW':0,'renewable_MW':0},{'load_MW':0,'renewable_MW':0},{'load_MW':5,'renewable_MW':0},{'load_MW':0,'renewable_MW':0},{'load_MW':5,'renewable_MW':0},{'load_MW':5,'renewable_MW':0}]}
  x=good(d); rows=x['dispatch']
  assert [row['generators'][0]['on'] for row in rows]==[False,False,True,False,False,True]
@@ -103,6 +103,13 @@ def test_offline_unit_is_not_started_when_minimum_exceeds_deficit():
  assert row['generators']==[{'id':'unit','on':False,'power_MW':0.0}]
  assert row['unserved_MW']==pytest.approx(5,abs=1e-9)
  assert x['summary']['total_cost']==pytest.approx(50000,abs=1e-9)
+def test_startable_unit_stays_off_when_minimum_exceeds_ramp_up_limit():
+ '''CASE-QSC004-START-RAMP-FEASIBILITY: "A newly started unit's output in its starting hour cannot exceed ramp_up_MW; if that cap is below min_MW, leave it off and use the remaining sources."'''
+ d={'horizon_hours':1,'reserve_MW':0,'generators':[{'id':'unit','min_MW':10,'max_MW':20,'marginal_cost':2,'startup_cost':3,'ramp_up_MW':5,'ramp_down_MW':20,'min_up_hours':1,'min_down_hours':0,'initial_state':'off'}], 'storage':{'capacity_MWh':0,'initial_MWh':0,'max_charge_MW':0,'max_discharge_MW':0,'charge_efficiency':1,'discharge_efficiency':1}, 'periods':[{'load_MW':10,'renewable_MW':0}]}
+ x=good(d); row=x['dispatch'][0]
+ assert row['generators']==[{'id':'unit','on':False,'power_MW':0.0}]
+ assert row['unserved_MW']==pytest.approx(10,abs=1e-9)
+ assert x['summary']['total_cost']==pytest.approx(100000,abs=1e-9)
 def test_reserve_report_handles_each_single_unit_outage():
  '''CASE-QSC004-N1-RESERVE: "For each online generator in turn, treat that unit as unavailable and sum the remaining online-generator reserve plus storage reserve."'''
  d=base(); d['generators']=[{'id':'beta','min_MW':2,'max_MW':6,'marginal_cost':10,'startup_cost':0,'ramp_up_MW':6,'ramp_down_MW':6,'min_up_hours':1,'min_down_hours':0,'initial_state':'on'},{'id':'alpha','min_MW':2,'max_MW':6,'marginal_cost':20,'startup_cost':0,'ramp_up_MW':6,'ramp_down_MW':6,'min_up_hours':1,'min_down_hours':0,'initial_state':'on'}]
