@@ -206,6 +206,26 @@ def test_missing_period_field_is_rejected_atomically():
         assert observed['output_exists'] is existing
         assert observed['temporary_files'] == []
 
+def test_zero_hour_horizon_is_rejected_atomically():
+    '''CASE-QSC004-REJECT-ZERO-HORIZON: "`horizon_hours` must be an integer from 1 through 96."'''
+    d=base(); d['horizon_hours']=0; d['periods']=[]
+    for existing in (False,True):
+        r,b,s,observed=run(d,existing)
+        assert r.returncode != 0
+        assert b==s if existing else b is None
+        assert observed['output_exists'] is existing
+        assert observed['temporary_files'] == []
+
+def test_empty_generator_set_is_rejected_atomically():
+    '''CASE-QSC004-REJECT-EMPTY-GENERATORS: "`generators` must contain at least one unit."'''
+    d=base(); d['generators']=[]
+    for existing in (False,True):
+        r,b,s,observed=run(d,existing)
+        assert r.returncode != 0
+        assert b==s if existing else b is None
+        assert observed['output_exists'] is existing
+        assert observed['temporary_files'] == []
+
 def test_invalid_discharge_efficiency_preserves_sentinel():
     '''CASE-QSC004-REJECT-EFFICIENCY: "Each storage efficiency must be greater than zero and at most one."'''
     d=base(); d['storage']['discharge_efficiency']=0
