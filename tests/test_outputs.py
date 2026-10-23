@@ -85,7 +85,16 @@ def test_storage_is_used_before_unserved_load():
  assert q['storage']['discharge_MW']==pytest.approx(1.6,abs=1e-9) and q['storage']['state_MWh']==pytest.approx(0,abs=1e-9) and q['unserved_MW']==pytest.approx(0.4,abs=1e-9)
 def test_unserved_load_is_last_resort_and_penalized():
  """CASE-QSC004-UNSERVED: "Unserved load is penalized by the fixed public constant `10000.0` currency/MWh."""
- d=base(); d['periods']=[{'load_MW':100,'renewable_MW':0}]; d['horizon_hours']=1; x=good(d); assert x['summary']['total_unserved_MWh']>0 and x['summary']['total_cost']>=10000*x['summary']['total_unserved_MWh']
+ d=base(); d['periods']=[{'load_MW':100,'renewable_MW':0}]; d['horizon_hours']=1; x=good(d)
+ generation=sum(g['power_MW']*next(v['marginal_cost'] for v in d['generators'] if v['id']==g['id']) for q in x['dispatch'] for g in q['generators'])
+ previous={g['id']:g['initial_state']=='on' for g in d['generators']}
+ startup=0
+ for q in x['dispatch']:
+  for g in q['generators']:
+   if g['on'] and not previous[g['id']]: startup+=next(v['startup_cost'] for v in d['generators'] if v['id']==g['id'])
+   previous[g['id']]=g['on']
+ assert x['summary']['total_unserved_MWh']>0
+ assert x['summary']['total_cost']==pytest.approx(generation+startup+10000*x['summary']['total_unserved_MWh'],abs=1e-9)
 def test_balance_residual_is_zero():
  """CASE-QSC004-BALANCE: "load balance each period" has a bounded residual."""
  x=good(); assert all(abs(q['balance_residual_MW'])<=1e-9 for q in rec(x))
@@ -95,7 +104,11 @@ def test_summary_commitment_hours_matches_records():
  for gid,n in x['summary']['commitment_hours'].items(): assert n==sum(g['on'] for q in rec(x) for g in q['generators'] if g['id']==gid)
 def test_output_schema_is_exact_and_ordered():
  """CASE-QSC004-OUTPUT-SCHEMA: "Return exactly `dispatch` and `summary`."""
- x=good(); assert list(x)==['dispatch','summary'] and set(x['dispatch'][0])=={'generators','storage','renewable_used_MW','curtailment_MW','unserved_MW','balance_residual_MW'}
+ x=good(); assert list(x)==['dispatch','summary']
+ assert list(x['dispatch'][0])==['generators','storage','renewable_used_MW','curtailment_MW','unserved_MW','balance_residual_MW']
+ assert list(x['dispatch'][0]['storage'])==['charge_MW','discharge_MW','state_MWh']
+ assert all(list(g)==['id','on','power_MW'] for g in x['dispatch'][0]['generators'])
+ assert list(x['summary'])==['total_cost','total_unserved_MWh','total_renewable_curtailment_MWh','final_storage_MWh','commitment_hours']
 def test_invalid_input_preserves_absent_output():
  """CASE-QSC004-REJECT-ABSENT: invalid input must "leave `OUTPUT.json` absent or byte-for-byte unchanged"."""
  d=base(); d['storage']['charge_efficiency']=0
