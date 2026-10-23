@@ -2,7 +2,7 @@
 
 The reference implementation is intentionally independent of the verifier and covers three domain challenges:
 
-1. `UNIT-01`: commitment-duration state, initial/inter-hour ramp feasibility, post-shutdown minimum-down lockout, and the distinction between a must-run commitment and its minimum feasible power before merit-order increments. Tests: `CASE-QSC004-MIN-UP`, `CASE-QSC004-MIN-DOWN`, `CASE-QSC004-INITIAL-DOWN-EXPIRY`, `CASE-QSC004-DOWN-LOCKOUT`, `CASE-QSC004-RAMP-INITIAL`, `CASE-QSC004-RAMP-DOWN-STORAGE`, and `CASE-QSC004-MUST-RUN-BALANCE`.
+1. `UNIT-01`: commitment-duration state, initial/inter-hour ramp feasibility, post-shutdown minimum-down lockout, and the distinction between a must-run commitment and its minimum feasible power before merit-order increments. Tests: `CASE-QSC004-MIN-UP`, `CASE-QSC004-MIN-DOWN`, `CASE-QSC004-INITIAL-DOWN-EXPIRY`, `CASE-QSC004-DOWN-LOCKOUT`, `CASE-QSC004-RAMP-INITIAL`, `CASE-QSC004-RAMP-DOWN-STORAGE`, `CASE-QSC004-MUST-RUN-BALANCE`, `CASE-QSC004-MINIMUM-OUTPUT-FEASIBILITY`, and `CASE-QSC004-START-MINIMUM-EXCEEDS-DEFICIT`.
 2. `STOR-02`: efficiency-aware storage recursion, charging surplus before curtailment, and using available storage before unserved load. Tests: `CASE-QSC004-SOC-RECURRENCE`, `CASE-QSC004-SURPLUS-CHARGE`, `CASE-QSC004-STORAGE-LAST-RESORT`, and `CASE-QSC004-SOC-CAPACITY`.
 3. `BAL-03`: renewable-first supply, unserved-energy penalty, startup accounting, deterministic merit-order ties, and per-period conservation. Tests: `CASE-QSC004-RENEWABLE`, `CASE-QSC004-UNSERVED`, `CASE-QSC004-COST-LEDGER`, `CASE-QSC004-BALANCE`, `CASE-QSC004-STARTUP-COST`, `CASE-QSC004-STARTUP-NOT-OBJECTIVE`, and `CASE-QSC004-TIE-ORDER`.
 

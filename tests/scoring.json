@@ -14,6 +14,7 @@
     "test_outputs.py::test_must_run_output_is_reserved_before_merit_dispatch",
     "test_outputs.py::test_must_run_surplus_uses_storage_capacity",
     "test_outputs.py::test_unabsorbable_must_run_surplus_is_rejected_atomically",
+    "test_outputs.py::test_must_run_minimum_output_is_not_clipped_to_load",
     "test_outputs.py::test_reserve_report_handles_each_single_unit_outage",
     "test_outputs.py::test_storage_alone_supplies_reserve_when_all_generators_are_off",
     "test_outputs.py::test_storage_contingency_reserve_is_limited_by_energy_and_efficiency",
@@ -33,6 +34,11 @@
     "test_outputs.py::test_shutdown_starts_minimum_down_lockout_for_following_hours": {
       "priority": "core",
       "rationale": "a shutdown transition starts a multi-hour minimum-down lockout and delays restart",
+      "weight": 0.07
+    },
+    "test_outputs.py::test_offline_unit_is_not_started_when_minimum_exceeds_deficit": {
+      "priority": "core",
+      "rationale": "prevent a start that would force infeasible minimum generation above the remaining deficit",
       "weight": 0.07
     },
     "test_outputs.py::test_initial_off_state_honors_minimum_down_duration": {
@@ -88,27 +94,27 @@
     "test_outputs.py::test_output_schema_is_exact_and_ordered": {
       "priority": "core",
       "rationale": "public contract behavior: test_output_schema_is_exact_and_ordered",
-      "weight": 0.02
+      "weight": 0.01
     },
     "test_outputs.py::test_repeat_run_is_idempotent": {
       "priority": "core",
       "rationale": "public contract behavior: test_repeat_run_is_idempotent",
-      "weight": 0.02
+      "weight": 0.01
     },
     "test_outputs.py::test_startup_cost_is_reported_once": {
       "priority": "core",
       "rationale": "public contract behavior: test_startup_cost_is_reported_once",
-      "weight": 0.02
+      "weight": 0.01
     },
     "test_outputs.py::test_generator_order_is_preserved": {
       "priority": "core",
       "rationale": "public contract behavior: test_generator_order_is_preserved",
-      "weight": 0.02
+      "weight": 0.01
     },
     "test_outputs.py::test_unit_efficiencies_are_valid_boundary_values": {
       "priority": "core",
       "rationale": "public contract behavior: unit efficiency boundary values",
-      "weight": 0.02
+      "weight": 0.01
     },
     "test_outputs.py::test_replace_failure_preserves_existing_output": {
       "priority": "core",
@@ -128,12 +134,12 @@
     "test_outputs.py::test_merit_ties_use_generator_id_without_changing_output_order": {
       "priority": "core",
       "rationale": "deterministic merit-order tie break is independent of input presentation order",
-      "weight": 0.02
+      "weight": 0.01
     },
     "test_outputs.py::test_startup_cost_does_not_change_merit_order": {
       "priority": "core",
       "rationale": "reported startup cost does not replace marginal-cost dispatch order",
-      "weight": 0.02
+      "weight": 0.01
     },
     "test_outputs.py::test_initial_minimum_down_time_expires_after_exact_hours": {
       "priority": "core",

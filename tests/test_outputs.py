@@ -88,6 +88,21 @@ def test_unabsorbable_must_run_surplus_is_rejected_atomically():
   assert r.returncode!=0
   assert b==s if existing else b is None
   assert observed['output_exists'] is existing and observed['temporary_files']==[]
+def test_must_run_minimum_output_is_not_clipped_to_load():
+ '''CASE-QSC004-MINIMUM-OUTPUT-FEASIBILITY: "First reserve each must-run unit at its minimum feasible output for the hour: the greater of `min_MW` and its ramp-down floor when previously on. A must-run thermal minimum that exceeds the deficit may be absorbed by available storage charging capacity; if the resulting surplus cannot be absorbed while satisfying the storage limits, reject the input as infeasible and preserve the output path."'''
+ d={'horizon_hours':1,'reserve_MW':0,'generators':[{'id':'unit','min_MW':10,'max_MW':10,'marginal_cost':2,'startup_cost':3,'ramp_up_MW':10,'ramp_down_MW':10,'min_up_hours':1,'min_down_hours':0,'initial_state':'on'}], 'storage':{'capacity_MWh':0,'initial_MWh':0,'max_charge_MW':0,'max_discharge_MW':0,'charge_efficiency':1,'discharge_efficiency':1}, 'periods':[{'load_MW':5,'renewable_MW':0}]}
+ for existing in (False,True):
+  r,b,s,observed=run(d,existing)
+  assert r.returncode!=0
+  assert b==s if existing else b is None
+  assert observed['output_exists'] is existing and observed['temporary_files']==[]
+def test_offline_unit_is_not_started_when_minimum_exceeds_deficit():
+ '''CASE-QSC004-START-MINIMUM-EXCEEDS-DEFICIT: "Do not start a unit whose minimum feasible output exceeds the remaining deficit."'''
+ d={'horizon_hours':1,'reserve_MW':0,'generators':[{'id':'unit','min_MW':10,'max_MW':10,'marginal_cost':2,'startup_cost':3,'ramp_up_MW':10,'ramp_down_MW':10,'min_up_hours':1,'min_down_hours':0,'initial_state':'off'}], 'storage':{'capacity_MWh':0,'initial_MWh':0,'max_charge_MW':0,'max_discharge_MW':0,'charge_efficiency':1,'discharge_efficiency':1}, 'periods':[{'load_MW':5,'renewable_MW':0}]}
+ x=good(d); row=x['dispatch'][0]
+ assert row['generators']==[{'id':'unit','on':False,'power_MW':0.0}]
+ assert row['unserved_MW']==pytest.approx(5,abs=1e-9)
+ assert x['summary']['total_cost']==pytest.approx(50000,abs=1e-9)
 def test_reserve_report_handles_each_single_unit_outage():
  '''CASE-QSC004-N1-RESERVE: "For each online generator in turn, treat that unit as unavailable and sum the remaining online-generator reserve plus storage reserve."'''
  d=base(); d['generators']=[{'id':'beta','min_MW':2,'max_MW':6,'marginal_cost':10,'startup_cost':0,'ramp_up_MW':6,'ramp_down_MW':6,'min_up_hours':1,'min_down_hours':0,'initial_state':'on'},{'id':'alpha','min_MW':2,'max_MW':6,'marginal_cost':20,'startup_cost':0,'ramp_up_MW':6,'ramp_down_MW':6,'min_up_hours':1,'min_down_hours':0,'initial_state':'on'}]
