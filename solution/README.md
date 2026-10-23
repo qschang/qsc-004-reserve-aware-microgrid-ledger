@@ -2,7 +2,7 @@
 
 The reference implementation is intentionally independent of the verifier and covers three domain challenges:
 
-1. `UNIT-01`: commitment-duration state and initial/inter-hour ramp feasibility. Tests: `CASE-QSC004-MIN-UP`, `CASE-QSC004-MIN-DOWN`, and `CASE-QSC004-RAMP-INITIAL`.
+1. `UNIT-01`: commitment-duration state, initial/inter-hour ramp feasibility, and the distinction between a must-run commitment and its minimum feasible power before merit-order increments. Tests: `CASE-QSC004-MIN-UP`, `CASE-QSC004-MIN-DOWN`, `CASE-QSC004-RAMP-INITIAL`, and `CASE-QSC004-MUST-RUN-BALANCE`.
 2. `STOR-02`: efficiency-aware storage recursion, charging surplus before curtailment, and using available storage before unserved load. Tests: `CASE-QSC004-SOC-RECURRENCE`, `CASE-QSC004-SURPLUS-CHARGE`, `CASE-QSC004-STORAGE-LAST-RESORT`, and `CASE-QSC004-SOC-CAPACITY`.
 3. `BAL-03`: renewable-first supply, unserved-energy penalty, startup accounting, and per-period conservation. Tests: `CASE-QSC004-RENEWABLE`, `CASE-QSC004-UNSERVED`, `CASE-QSC004-BALANCE`, and `CASE-QSC004-STARTUP-COST`.
 

@@ -31,6 +31,7 @@ def test_minimum_up_duration_is_respected():
 def test_must_run_output_is_reserved_before_merit_dispatch():
  """CASE-QSC004-MUST-RUN-BALANCE: minimum-up output must fit into the hourly balance."""
  d=base(); d['generators'][0].update({'min_MW':0,'max_MW':6,'marginal_cost':1,'min_up_hours':0,'min_down_hours':0}); d['generators'][1].update({'min_MW':2,'max_MW':10,'marginal_cost':30,'min_up_hours':2,'min_down_hours':0}); d['horizon_hours']=2; d['periods']=[{'load_MW':10,'renewable_MW':0},{'load_MW':6,'renewable_MW':0}]; d['storage'].update({'capacity_MWh':0,'initial_MWh':0,'max_charge_MW':0,'max_discharge_MW':0}); x=good(d); q=x['dispatch'][1]
+ assert {g['id']:g['power_MW'] for g in x['dispatch'][0]['generators']}=={'cheap':6,'expensive':4}
  assert {g['id']:g['power_MW'] for g in q['generators']}=={'cheap':4,'expensive':2}
  assert q['unserved_MW']==0 and q['storage']['discharge_MW']>=0 and abs(q['balance_residual_MW'])<=1e-9
 def test_must_run_surplus_uses_storage_capacity():
