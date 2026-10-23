@@ -42,6 +42,22 @@ def test_must_run_output_is_reserved_before_merit_dispatch():
  assert {g['id']:g['power_MW'] for g in x['dispatch'][0]['generators']}=={'cheap':6,'expensive':4}
  assert {g['id']:g['power_MW'] for g in q['generators']}=={'cheap':4,'expensive':2}
  assert q['unserved_MW']==0 and q['storage']['discharge_MW']>=0 and abs(q['balance_residual_MW'])<=1e-9
+def test_ramp_down_floor_forces_must_run_surplus_into_storage():
+ '''CASE-QSC004-RAMP-DOWN-STORAGE: "Units that must stay on because of their minimum up time or ramp-down limit remain committed. When no must-run obligation remains and the remaining deficit is zero, leave the unit off rather than retaining an idle commitment."'''
+ d={'horizon_hours':5,'reserve_MW':0,'generators':[{'id':'unit','min_MW':0,'max_MW':10,'marginal_cost':2,'startup_cost':9,'ramp_up_MW':10,'ramp_down_MW':2,'min_up_hours':2,'min_down_hours':0,'initial_state':'off'}], 'storage':{'capacity_MWh':20,'initial_MWh':0,'max_charge_MW':8,'max_discharge_MW':0,'charge_efficiency':1,'discharge_efficiency':1}, 'periods':[{'load_MW':8,'renewable_MW':0},{'load_MW':0,'renewable_MW':0},{'load_MW':0,'renewable_MW':0},{'load_MW':0,'renewable_MW':0},{'load_MW':0,'renewable_MW':0}]}
+ x=good(d); rows=x['dispatch']
+ assert [row['generators'][0]['on'] for row in rows]==[True,True,True,True,False]
+ assert [row['generators'][0]['power_MW'] for row in rows]==pytest.approx([8,6,4,2,0],abs=1e-9)
+ assert [row['storage']['charge_MW'] for row in rows]==pytest.approx([0,6,4,2,0],abs=1e-9)
+ assert [row['storage']['state_MWh'] for row in rows]==pytest.approx([0,6,10,12,12],abs=1e-9)
+ assert all(abs(row['balance_residual_MW'])<=1e-9 for row in rows)
+def test_shutdown_starts_minimum_down_lockout_for_following_hours():
+ '''CASE-QSC004-DOWN-LOCKOUT: "When a unit changes commitment in hour `t`, that hour counts as the first hour in its new state. When no must-run obligation remains and the remaining deficit is zero, leave the unit off rather than retaining an idle commitment."'''
+ d={'horizon_hours':6,'reserve_MW':0,'generators':[{'id':'unit','min_MW':0,'max_MW':5,'marginal_cost':1,'startup_cost':2,'ramp_up_MW':5,'ramp_down_MW':5,'min_up_hours':1,'min_down_hours':2,'initial_state':'off'}], 'storage':{'capacity_MWh':0,'initial_MWh':0,'max_charge_MW':0,'max_discharge_MW':0,'charge_efficiency':1,'discharge_efficiency':1}, 'periods':[{'load_MW':0,'renewable_MW':0},{'load_MW':0,'renewable_MW':0},{'load_MW':5,'renewable_MW':0},{'load_MW':0,'renewable_MW':0},{'load_MW':5,'renewable_MW':0},{'load_MW':5,'renewable_MW':0}]}
+ x=good(d); rows=x['dispatch']
+ assert [row['generators'][0]['on'] for row in rows]==[False,False,True,False,False,True]
+ assert [row['unserved_MW'] for row in rows]==pytest.approx([0,0,0,0,5,0],abs=1e-9)
+ assert x['summary']['commitment_hours']=={'unit':2}
 def test_merit_ties_use_generator_id_without_changing_output_order():
  '''CASE-QSC004-TIE-ORDER: "Then allocate the remaining deficit in merit order by `(marginal_cost, id)` across all already-on and startable units, including must-run units that have room to increase."'''
  d=base(); d['generators']=list(reversed(d['generators']))
