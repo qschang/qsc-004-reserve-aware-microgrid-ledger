@@ -1,0 +1,43 @@
+schema_version: 1
+task_id: qsc-004
+domain: F.2 energy systems
+status: candidate
+challenges:
+  - id: UNIT-01
+    reasoning_failure: Choosing generators independently each hour ignores startup cost, minimum up/down duration, ramp limits, and future reserve requirements.
+    observable_symptom: A locally cheap dispatch can produce a higher full-horizon cost or an infeasible later period.
+    test_ids:
+      - CASE-QSC004-STARTUP-OBJECTIVE
+      - CASE-QSC004-GLOBAL-STARTUP-PLAN
+      - CASE-QSC004-OPTIMAL-UNSERVED
+      - CASE-QSC004-OPTIMAL-RESERVE-COMMITMENT
+    independent_validation: Exhaustively enumerate every voluntary commitment matrix for the published maximum of two generators and six periods; independently recompute feasibility and objective for each plan.
+  - id: STOR-02
+    reasoning_failure: Treating storage power as energy, or omitting charge/discharge efficiency, violates inter-period state conservation and reserve capability.
+    observable_symptom: State of charge drifts from the specified recurrence, exceeds capacity, or claims reserve unsupported by energy.
+    test_ids:
+      - CASE-QSC004-SOC-RECURRENCE
+      - CASE-QSC004-SURPLUS-CHARGE
+      - CASE-QSC004-STORAGE-LAST-RESORT
+      - CASE-QSC004-SOC-CAPACITY
+    independent_validation: Recompute state transitions and reserve energy bounds from the public equations using hand-calculated boundary fixtures.
+  - id: RES-04
+    reasoning_failure: Adding all online headroom without the single-unit outage rule, or balancing charge/discharge with the wrong sign, reports reserve or energy that cannot be delivered.
+    observable_symptom: A dispatch has a nonzero balance residual, an incorrect limiting outage, or passes a reserve requirement that fails after the limiting unit trips.
+    test_ids:
+      - CASE-QSC004-N1-RESERVE
+      - CASE-QSC004-RESERVE-STORAGE-ONLY
+      - CASE-QSC004-RESERVE-STORAGE-ENERGY
+      - CASE-QSC004-BALANCE
+    independent_validation: Recompute each online-unit outage scenario independently and verify per-period conservation and storage state transitions.
+data_provenance:
+  kind: synthetic
+  source: Deterministic hand-authored JSON fixtures in tests/test_outputs.py; no external operational or personal data.
+  generation_rule: Fixed values selected to isolate commitment, storage, reserve, validation, and atomic-publication boundaries.
+  seed: not applicable; fixtures are explicit and deterministic.
+originality_checks:
+  comparisons: Compared at the concept level with the user-provided accepted task list and the local qsc task history; this package focuses on a constrained multi-period microgrid ledger and does not reuse their narratives or fixtures.
+  limitation: Full registry-wide duplicate search remains a separate audit check.
+expected_result_rationale:
+  method: Expected outputs are checked against explicit conservation equations and exhaustive enumeration over all 2^(generator_count * horizon_hours) commitment matrices within the declared 2-generator/6-period bound.
+  review_status: Candidate calculations were exercised by the local test suite; independent domain-owner sign-off remains pending.

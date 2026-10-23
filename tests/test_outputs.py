@@ -53,10 +53,10 @@ def test_ramp_down_floor_forces_must_run_surplus_into_storage():
  assert all(abs(row['balance_residual_MW'])<=1e-9 for row in rows)
 def test_shutdown_starts_minimum_down_lockout_for_following_hours():
  '''CASE-QSC004-DOWN-LOCKOUT: "When a unit changes commitment in hour t, that hour counts as the first hour in its new state"'''
- d={'horizon_hours':6,'reserve_MW':0,'generators':[{'id':'unit','min_MW':0,'max_MW':5,'marginal_cost':1,'startup_cost':2,'ramp_up_MW':5,'ramp_down_MW':5,'min_up_hours':1,'min_down_hours':2,'initial_state':'off'}], 'storage':{'capacity_MWh':0,'initial_MWh':0,'max_charge_MW':0,'max_discharge_MW':0,'charge_efficiency':1,'discharge_efficiency':1}, 'periods':[{'load_MW':0,'renewable_MW':0},{'load_MW':0,'renewable_MW':0},{'load_MW':5,'renewable_MW':0},{'load_MW':0,'renewable_MW':0},{'load_MW':5,'renewable_MW':0},{'load_MW':5,'renewable_MW':0}]}
+ d={'horizon_hours':4,'reserve_MW':0,'generators':[{'id':'unit','min_MW':1,'max_MW':5,'marginal_cost':1,'startup_cost':2,'ramp_up_MW':5,'ramp_down_MW':5,'min_up_hours':1,'min_down_hours':2,'initial_state':'on'}], 'storage':{'capacity_MWh':0,'initial_MWh':0,'max_charge_MW':0,'max_discharge_MW':0,'charge_efficiency':1,'discharge_efficiency':1}, 'periods':[{'load_MW':5,'renewable_MW':0},{'load_MW':0,'renewable_MW':0},{'load_MW':5,'renewable_MW':0},{'load_MW':5,'renewable_MW':0}]}
  x=good(d); rows=x['dispatch']
- assert [row['generators'][0]['on'] for row in rows]==[False,False,True,False,False,True]
- assert [row['unserved_MW'] for row in rows]==pytest.approx([0,0,0,0,5,0],abs=1e-9)
+ assert [row['generators'][0]['on'] for row in rows]==[True,False,False,True]
+ assert [row['unserved_MW'] for row in rows]==pytest.approx([0,0,5,0],abs=1e-9)
  assert x['summary']['commitment_hours']=={'unit':2}
 def test_merit_ties_use_generator_id_without_changing_output_order():
  '''CASE-QSC004-TIE-ORDER: "Then allocate the remaining deficit in merit order by (marginal_cost, id) across all already-on and startable units, including must-run units that have room to increase."'''
@@ -66,15 +66,36 @@ def test_merit_ties_use_generator_id_without_changing_output_order():
  q=good(d)['dispatch'][0]
  assert [g['id'] for g in q['generators']]==['expensive','cheap']
  assert {g['id']:g['power_MW'] for g in q['generators']}=={'cheap':3,'expensive':0}
-def test_startup_cost_does_not_change_merit_order():
- '''CASE-QSC004-STARTUP-NOT-OBJECTIVE: "This cost is a reported ledger value, not a dispatch optimization objective."'''
+def test_startup_cost_can_change_the_globally_optimal_commitment():
+ '''CASE-QSC004-STARTUP-OBJECTIVE: "Choose the feasible full-horizon schedule with the lowest total_cost."'''
  d=base(); d['generators']=d['generators'][:2]
  d['generators'][0].update({'id':'cheap','min_MW':0,'max_MW':5,'marginal_cost':1,'startup_cost':1000,'ramp_up_MW':5,'ramp_down_MW':5,'min_up_hours':0,'min_down_hours':0,'initial_state':'off'})
  d['generators'][1].update({'id':'dear','min_MW':0,'max_MW':5,'marginal_cost':2,'startup_cost':0,'ramp_up_MW':5,'ramp_down_MW':5,'min_up_hours':0,'min_down_hours':0,'initial_state':'off'})
  d['horizon_hours']=1; d['periods']=[{'load_MW':4,'renewable_MW':0}]; d['storage'].update({'capacity_MWh':0,'initial_MWh':0,'max_charge_MW':0,'max_discharge_MW':0})
  x=good(d); q=x['dispatch'][0]
- assert {g['id']:g['power_MW'] for g in q['generators']}=={'cheap':4,'dear':0}
- assert x['summary']['total_cost']==pytest.approx(1004,abs=1e-9)
+ assert {g['id']:g['power_MW'] for g in q['generators']}=={'cheap':0,'dear':4}
+ assert x['summary']['total_cost']==pytest.approx(8,abs=1e-9)
+def test_global_schedule_keeps_a_zero_output_unit_online_to_avoid_restart_cost():
+ '''CASE-QSC004-GLOBAL-STARTUP-PLAN: "A voluntarily committed unit with min_MW equal to zero may remain online at zero output when doing so lowers total_cost over the full horizon."'''
+ d={'horizon_hours':3,'reserve_MW':0,'generators':[{'id':'unit','min_MW':0,'max_MW':5,'marginal_cost':1,'startup_cost':20,'ramp_up_MW':5,'ramp_down_MW':5,'min_up_hours':0,'min_down_hours':0,'initial_state':'off'}], 'storage':{'capacity_MWh':0,'initial_MWh':0,'max_charge_MW':0,'max_discharge_MW':0,'charge_efficiency':1,'discharge_efficiency':1}, 'periods':[{'load_MW':5,'renewable_MW':0},{'load_MW':0,'renewable_MW':0},{'load_MW':5,'renewable_MW':0}]}
+ x=good(d); rows=x['dispatch']
+ assert [r['generators'][0]['on'] for r in rows]==[True,True,True]
+ assert [r['generators'][0]['power_MW'] for r in rows]==pytest.approx([5,0,5],abs=1e-9)
+ assert x['summary']['total_cost']==pytest.approx(30,abs=1e-9)
+def test_global_cost_may_prefer_unserved_energy_to_expensive_generation():
+ '''CASE-QSC004-OPTIMAL-UNSERVED: "Choose the feasible full-horizon schedule with the lowest total_cost."'''
+ d={'horizon_hours':1,'reserve_MW':0,'generators':[{'id':'unit','min_MW':0,'max_MW':5,'marginal_cost':15000,'startup_cost':0,'ramp_up_MW':5,'ramp_down_MW':5,'min_up_hours':0,'min_down_hours':0,'initial_state':'off'}], 'storage':{'capacity_MWh':0,'initial_MWh':0,'max_charge_MW':0,'max_discharge_MW':0,'charge_efficiency':1,'discharge_efficiency':1}, 'periods':[{'load_MW':5,'renewable_MW':0}]}
+ x=good(d); row=x['dispatch'][0]
+ assert row['generators']==[{'id':'unit','on':False,'power_MW':0.0}]
+ assert row['unserved_MW']==pytest.approx(5,abs=1e-9)
+ assert x['summary']['total_cost']==pytest.approx(50000,abs=1e-9)
+def test_reserve_requirement_can_make_startup_cost_optimal():
+ '''CASE-QSC004-OPTIMAL-RESERVE-COMMITMENT: "A schedule chooses which units may be voluntarily online in each hour"'''
+ d={'horizon_hours':1,'reserve_MW':4,'generators':[{'id':'alpha','min_MW':0,'max_MW':5,'marginal_cost':2,'startup_cost':7,'ramp_up_MW':5,'ramp_down_MW':5,'min_up_hours':0,'min_down_hours':0,'initial_state':'off'},{'id':'beta','min_MW':0,'max_MW':5,'marginal_cost':2,'startup_cost':7,'ramp_up_MW':5,'ramp_down_MW':5,'min_up_hours':0,'min_down_hours':0,'initial_state':'off'}], 'storage':{'capacity_MWh':0,'initial_MWh':0,'max_charge_MW':0,'max_discharge_MW':0,'charge_efficiency':1,'discharge_efficiency':1}, 'periods':[{'load_MW':0,'renewable_MW':0}]}
+ x=good(d); row=x['dispatch'][0]
+ assert row['generators']==[{'id':'alpha','on':True,'power_MW':0.0},{'id':'beta','on':True,'power_MW':0.0}]
+ assert row['reserve']['available_MW']==pytest.approx(5,abs=1e-9)
+ assert x['summary']['total_cost']==pytest.approx(14,abs=1e-9)
 def test_must_run_surplus_uses_storage_capacity():
  '''CASE-QSC004-MUST-RUN-CHARGE: "A must-run thermal minimum that exceeds the deficit may be absorbed by available storage charging capacity".'''
  d=base(); d['generators']=d['generators'][:1]; d['generators'][0].update({'min_MW':2,'max_MW':2,'min_up_hours':1,'min_down_hours':0,'initial_state':'on'}); d['horizon_hours']=1; d['periods']=[{'load_MW':0,'renewable_MW':0}]; d['storage'].update({'capacity_MWh':2,'initial_MWh':0,'max_charge_MW':2,'max_discharge_MW':0}); q=good(d)['dispatch'][0]
@@ -264,7 +285,7 @@ def test_missing_period_field_is_rejected_atomically():
         assert observed['temporary_files'] == []
 
 def test_zero_hour_horizon_is_rejected_atomically():
-    '''CASE-QSC004-REJECT-ZERO-HORIZON: "`horizon_hours` must be a JSON integer from 1 through 96"'''
+    '''CASE-QSC004-REJECT-ZERO-HORIZON: "The input is bounded to 1 through 6 hourly periods and 1 through 2 generators."'''
     d=base(); d['horizon_hours']=0; d['periods']=[]
     for existing in (False,True):
         r,b,s,observed=run(d,existing)
@@ -276,6 +297,26 @@ def test_zero_hour_horizon_is_rejected_atomically():
 def test_empty_generator_set_is_rejected_atomically():
     '''CASE-QSC004-REJECT-EMPTY-GENERATORS: "`generators` must contain at least one unit"'''
     d=base(); d['generators']=[]
+    for existing in (False,True):
+        r,b,s,observed=run(d,existing)
+        assert r.returncode != 0
+        assert b==s if existing else b is None
+        assert observed['output_exists'] is existing
+        assert observed['temporary_files'] == []
+
+def test_more_than_two_generators_is_rejected_atomically():
+    '''CASE-QSC004-GENERATOR-BOUND: "The input is bounded to 1 through 6 hourly periods and 1 through 2 generators."'''
+    d=base(); d['horizon_hours']=1; d['periods']=[{'load_MW':0,'renewable_MW':0}]; d['generators'].append(dict(d['generators'][0],id='third'))
+    for existing in (False,True):
+        r,b,s,observed=run(d,existing)
+        assert r.returncode != 0
+        assert b==s if existing else b is None
+        assert observed['output_exists'] is existing
+        assert observed['temporary_files'] == []
+
+def test_more_than_six_periods_is_rejected_atomically():
+    '''CASE-QSC004-HORIZON-BOUND: "The input is bounded to 1 through 6 hourly periods and 1 through 2 generators."'''
+    d=base(); d['horizon_hours']=7; d['periods']=[{'load_MW':0,'renewable_MW':0} for _ in range(7)]
     for existing in (False,True):
         r,b,s,observed=run(d,existing)
         assert r.returncode != 0

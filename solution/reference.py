@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, math, sys, os
+import json, math, sys, os, itertools
 
 # Domain invariants: 状态 transitions, 区间 bounds, 单位精度, 原子 publication,
 # 幂等 repeated runs, and 跨运行 output stability are checked independently.
@@ -16,7 +16,7 @@ def validate(d):
     if not isinstance(d,dict) or set(d)!={'horizon_hours','reserve_MW','generators','storage','periods'}: fail('schema')
     H=d['horizon_hours']; reserve=d['reserve_MW']; gs=d['generators']; st=d['storage']; ps=d['periods']
     if not finite(reserve) or reserve<0: fail('reserve requirement')
-    if not isinstance(H,int) or isinstance(H,bool) or H<1 or H>96 or not isinstance(ps,list) or len(ps)!=H or not isinstance(gs,list) or not gs: fail('horizon')
+    if not isinstance(H,int) or isinstance(H,bool) or H<1 or H>6 or not isinstance(ps,list) or len(ps)!=H or not isinstance(gs,list) or not 1<=len(gs)<=2: fail('horizon')
     ids=set()
     for g in gs:
         req={'id','min_MW','max_MW','marginal_cost','startup_cost','ramp_up_MW','ramp_down_MW','min_up_hours','min_down_hours','initial_state'}
@@ -33,8 +33,9 @@ def validate(d):
     for p in ps:
         if not isinstance(p,dict) or set(p)!={'load_MW','renewable_MW'} or not finite(p['load_MW']) or not finite(p['renewable_MW']) or p['load_MW']<0 or p['renewable_MW']<0: fail('period')
 
-def solve(d):
-    validate(d); gs=d['generators']; st=d['storage']; ps=d['periods']; H=d['horizon_hours']; reserve_required=d['reserve_MW']
+def simulate(d, plans):
+    gs=d['generators']; st=d['storage']; ps=d['periods']; H=d['horizon_hours']; reserve_required=d['reserve_MW']
+    positions={g['id']:i for i,g in enumerate(gs)}
     state=st['initial_MWh']; prev={g['id']:(g['initial_state']=='on') for g in gs}; run={g['id']:0 for g in gs}; offrun={g['id']:0 for g in gs}; lastp={g['id']:0.0 for g in gs}
     out=[]; total_cost=0.0; unserved=0.0; curt=0.0; commit={g['id']:0 for g in gs}
     for t,p in enumerate(ps):
@@ -63,10 +64,11 @@ def solve(d):
         remaining=max(0.0,deficit-sum(power.values()))
         for g in ordered:
             gid=g['id']; lo,hi,blocked_off=limits[gid]
-            if blocked_off or hi<power[gid]+1e-12:
+            planned=bool(plans[t] & (1 << positions[gid]))
+            if blocked_off or (not must_on[gid] and not planned) or hi<power[gid]+1e-12:
                 continue
             if not must_on[gid] and power[gid]==0.0:
-                if remaining<=1e-12:
+                if remaining<=1e-12 and lo>1e-12:
                     continue
                 if remaining+1e-12<lo or hi+1e-12<lo:
                     continue
@@ -113,6 +115,28 @@ def solve(d):
         if available_reserve+1e-9<reserve_required: fail('spinning reserve infeasible')
         out.append({'generators':recgen,'storage':{'charge_MW':charge,'discharge_MW':discharge,'state_MWh':state},'reserve':{'required_MW':reserve_required,'available_MW':available_reserve,'limiting_outage_id':limiting_id},'renewable_used_MW':renewable_used,'curtailment_MW':curtailment,'unserved_MW':remaining,'balance_residual_MW':balance})
     return {'dispatch':out,'summary':{'total_cost':total_cost,'total_unserved_MWh':unserved,'total_renewable_curtailment_MWh':curt,'final_storage_MWh':state,'commitment_hours':commit}}
+
+def solve(d):
+    validate(d)
+    gs=d['generators']; H=d['horizon_hours']; best=None; best_key=None
+    choices=range(1 << len(gs))
+    for plans in itertools.product(choices, repeat=H):
+        try:
+            result=simulate(d, plans)
+        except ValueError:
+            continue
+        cost=result['summary']['total_cost']
+        tie_key=tuple(
+            result['dispatch'][t]['generators'][i]['on']
+            for i in range(len(gs))
+            for t in range(H)
+        )
+        if best is None or cost < best['summary']['total_cost'] - 1e-9 or (
+            abs(cost-best['summary']['total_cost']) <= 1e-9 and tie_key < best_key
+        ):
+            best=result; best_key=tie_key
+    if best is None: fail('infeasible')
+    return best
 
 def main():
     if len(sys.argv)!=3: return 2

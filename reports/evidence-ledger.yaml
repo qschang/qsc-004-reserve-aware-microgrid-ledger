@@ -1,0 +1,40 @@
+schema_version: 1
+task_id: qsc-004
+status: candidate
+claims:
+  - id: OBJ-01
+    claim: The selected dispatch minimizes the documented total-cost objective over feasible full-horizon commitment schedules within the published bounds.
+    sources:
+      - instruction.md: public objective and input bounds
+      - solution/reference.py: exhaustive commitment enumeration
+      - tests/test_outputs.py: global startup, unserved-energy, and reserve commitment cases
+    applicability: Applies to inputs with one or two generators and one through six hourly periods.
+    independent_check: Re-enumerate commitment matrices and compare the lowest feasible cost and tie-break commitment matrix on the scored fixtures.
+    status: locally-tested; independent audit pending
+  - id: STO-02
+    claim: Storage state, power limits, efficiencies, and reserve energy are enforced consistently.
+    sources:
+      - instruction.md: storage recurrence, power bounds, and reserve output contract
+      - solution/reference.py: storage transition and reserve calculation
+      - tests/test_outputs.py: storage recurrence, charging, discharge, capacity, and reserve boundary tests
+    applicability: Applies to every period and to contingency reserve calculations.
+    independent_check: Hand-recompute state of charge and deliverable energy for the published boundary fixtures.
+    status: locally-tested; independent audit pending
+  - id: BAL-03
+    claim: Per-period supply, storage, curtailment, and unserved energy satisfy the public balance equation.
+    sources:
+      - instruction.md: per-period balance equation
+      - solution/reference.py: balance residual calculation
+      - tests/test_outputs.py: renewable priority, unserved energy, balance, and must-run surplus cases
+    applicability: Applies to each successful dispatch record.
+    independent_check: Recompute left and right sides of the balance equation from emitted values and test fixtures.
+    status: locally-tested; independent audit pending
+  - id: INPUT-04
+    claim: Invalid schemas and values are rejected without creating or altering the destination file.
+    sources:
+      - instruction.md: input validation and failure-preservation contract
+      - tests/test_outputs.py: rejection and atomic-output cases
+      - tests/test.sh: JUnit-based score aggregation
+    applicability: Applies to all documented validation failures and publication failures.
+    independent_check: Exercise each rejection with absent and sentinel destinations, then inspect temporary-file cleanup.
+    status: local test suite passed; complete rejection matrix audit pending

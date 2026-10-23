@@ -7,6 +7,8 @@
     "test_outputs.py::test_missing_period_field_is_rejected_atomically",
     "test_outputs.py::test_zero_hour_horizon_is_rejected_atomically",
     "test_outputs.py::test_empty_generator_set_is_rejected_atomically",
+    "test_outputs.py::test_more_than_two_generators_is_rejected_atomically",
+    "test_outputs.py::test_more_than_six_periods_is_rejected_atomically",
     "test_outputs.py::test_duplicate_nested_json_member_is_rejected_atomically",
     "test_outputs.py::test_boolean_horizon_is_not_an_integer",
     "test_outputs.py::test_boolean_minimum_up_time_is_rejected",
@@ -24,17 +26,17 @@
     "test_outputs.py::test_minimum_up_duration_is_respected": {
       "priority": "core",
       "rationale": "public contract behavior: test_minimum_up_duration_is_respected",
-      "weight": 0.07
+      "weight": 0.03
     },
     "test_outputs.py::test_ramp_down_floor_forces_must_run_surplus_into_storage": {
       "priority": "core",
       "rationale": "ramp-down floor interacts with minimum-up commitment, storage charging, and hourly balance",
-      "weight": 0.07
+      "weight": 0.03
     },
     "test_outputs.py::test_shutdown_starts_minimum_down_lockout_for_following_hours": {
       "priority": "core",
       "rationale": "a shutdown transition starts a multi-hour minimum-down lockout and delays restart",
-      "weight": 0.07
+      "weight": 0.03
     },
     "test_outputs.py::test_offline_unit_is_not_started_when_minimum_exceeds_deficit": {
       "priority": "core",
@@ -49,52 +51,52 @@
     "test_outputs.py::test_initial_off_state_honors_minimum_down_duration": {
       "priority": "core",
       "rationale": "public contract behavior: test_initial_off_state_honors_minimum_down_duration",
-      "weight": 0.05
+      "weight": 0.03
     },
     "test_outputs.py::test_ramp_limits_include_initial_transition": {
       "priority": "core",
       "rationale": "public contract behavior: test_ramp_limits_include_initial_transition",
-      "weight": 0.05
+      "weight": 0.03
     },
     "test_outputs.py::test_zero_output_when_off": {
       "priority": "core",
       "rationale": "public contract behavior: test_zero_output_when_off",
-      "weight": 0.05
+      "weight": 0.03
     },
     "test_outputs.py::test_storage_recurrence_uses_efficiencies": {
       "priority": "core",
       "rationale": "public contract behavior: test_storage_recurrence_uses_efficiencies",
-      "weight": 0.05
+      "weight": 0.03
     },
     "test_outputs.py::test_storage_capacity_is_never_exceeded": {
       "priority": "core",
       "rationale": "public contract behavior: test_storage_capacity_is_never_exceeded",
-      "weight": 0.04
+      "weight": 0.03
     },
     "test_outputs.py::test_renewable_is_used_before_thermal": {
       "priority": "core",
       "rationale": "public contract behavior: test_renewable_is_used_before_thermal",
-      "weight": 0.04
+      "weight": 0.03
     },
     "test_outputs.py::test_unserved_load_is_last_resort_and_penalized": {
       "priority": "core",
       "rationale": "public contract behavior: test_unserved_load_is_last_resort_and_penalized",
-      "weight": 0.06
+      "weight": 0.02
     },
     "test_outputs.py::test_cost_ledger_accumulates_generation_startups_and_unserved_energy": {
       "priority": "core",
       "rationale": "multi-hour marginal generation, startup, and unserved-energy ledger totals",
-      "weight": 0.07
+      "weight": 0.02
     },
     "test_outputs.py::test_balance_residual_is_zero": {
       "priority": "core",
       "rationale": "public contract behavior: test_balance_residual_is_zero",
-      "weight": 0.04
+      "weight": 0.02
     },
     "test_outputs.py::test_summary_commitment_hours_matches_records": {
       "priority": "core",
       "rationale": "public contract behavior: test_summary_commitment_hours_matches_records",
-      "weight": 0.04
+      "weight": 0.03
     },
     "test_outputs.py::test_output_schema_is_exact_and_ordered": {
       "priority": "core",
@@ -129,27 +131,42 @@
     "test_outputs.py::test_renewable_surplus_charges_storage_before_curtailment": {
       "priority": "core",
       "rationale": "public energy balance behavior: renewable surplus, battery charge limits, and curtailment",
-      "weight": 0.04
+      "weight": 0.03
     },
     "test_outputs.py::test_storage_is_used_before_unserved_load": {
       "priority": "core",
       "rationale": "public energy balance behavior: feasible battery discharge precedes unserved load",
-      "weight": 0.04
+      "weight": 0.03
     },
     "test_outputs.py::test_merit_ties_use_generator_id_without_changing_output_order": {
       "priority": "core",
       "rationale": "deterministic merit-order tie break is independent of input presentation order",
       "weight": 0.01
     },
-    "test_outputs.py::test_startup_cost_does_not_change_merit_order": {
+    "test_outputs.py::test_startup_cost_can_change_the_globally_optimal_commitment": {
       "priority": "core",
-      "rationale": "reported startup cost does not replace marginal-cost dispatch order",
-      "weight": 0.01
+      "rationale": "startup cost is part of the full-horizon commitment objective",
+      "weight": 0.10
+    },
+    "test_outputs.py::test_global_schedule_keeps_a_zero_output_unit_online_to_avoid_restart_cost": {
+      "priority": "core",
+      "rationale": "cross-period scheduling weighs idle commitment against a later startup",
+      "weight": 0.12
+    },
+    "test_outputs.py::test_global_cost_may_prefer_unserved_energy_to_expensive_generation": {
+      "priority": "core",
+      "rationale": "the objective compares marginal cost with the public unserved-energy penalty",
+      "weight": 0.08
+    },
+    "test_outputs.py::test_reserve_requirement_can_make_startup_cost_optimal": {
+      "priority": "core",
+      "rationale": "reserve feasibility can justify a startup despite zero load",
+      "weight": 0.08
     },
     "test_outputs.py::test_initial_minimum_down_time_expires_after_exact_hours": {
       "priority": "core",
       "rationale": "initial off-state elapsed-time boundary controls the first eligible start",
-      "weight": 0.03
+      "weight": 0.02
     }
   },
   "weight_policy": {

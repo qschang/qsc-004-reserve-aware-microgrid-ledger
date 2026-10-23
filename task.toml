@@ -2,12 +2,12 @@ schema_version = "1.3"
 
 [task]
 name = "qsc/renewable-microgrid-dispatch-ledger"
-description = "Implement a renewable microgrid dispatch ledger with auditable feasibility outputs."
+description = "Optimize a bounded renewable microgrid commitment schedule and publish an auditable dispatch ledger."
 authors = [{ name = "QSC" }]
-keywords = ["microgrid-ledger", "ramping", "energy-balance", "storage-dispatch"]
+keywords = ["microgrid-ledger", "unit-commitment", "global-cost-optimization", "energy-balance", "storage-dispatch"]
 
 [agent]
-timeout_sec = 1800
+timeout_sec = 3600
 
 [environment]
 build_timeout_sec = 900
